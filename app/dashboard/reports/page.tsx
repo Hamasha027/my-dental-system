@@ -1,0 +1,1474 @@
+"use client"
+
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { jsPDF } from "jspdf"
+import html2canvas from "html2canvas"
+import { Download, Filter, CalendarDays, Eye, FileText, Users, DollarSign, Wallet, TrendingUp, Loader2, RotateCcw, User, TrendingDown, Printer } from "lucide-react"
+import { toast } from "sonner"
+
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+
+type ReportType = "expenses" | "installments" | "employees" | "sales" | "payment-history"
+type PeriodType = "today" | "week" | "month" | "year" | "all" | "custom"
+
+type Expense = {
+  id: string
+  title: string
+  amount: string
+  category: string
+  paymentMethod: string
+  date: string
+  note: string | null
+}
+
+type Employee = {
+  id: number
+  fullName: string
+  role: string
+  phonenumber: string
+  basicSalary: string
+  age: string | null
+  address: string | null
+  status: string
+  date: string
+  createdAt?: string | null
+}
+
+type PayrollRecord = {
+  id: number
+  staffId: number
+  amount: string
+  type: 'Advance' | 'Salary'
+  date: string
+  note: string | null
+  monthKey: string
+  isPaid: boolean
+}
+
+type EmployeePayrollReport = {
+  employee: Employee
+  basicSalary: number
+  advances: PayrollRecord[]
+  totalAdvances: number
+  remainingSalary: number
+}
+
+type Sale = {
+  id: number
+  productName: string
+  category: string
+  price: number
+  quantity: number
+  totalPrice: number
+  profit: number
+  date: string
+  notes?: string
+  createdAt?: string
+}
+
+type Installment = {
+  id: number
+  patientName: string
+  totalAmount: string
+  paidAmount: string
+  remainingAmount: string
+  installmentValue: string
+  nextPaymentDate: string | null
+  status: 'Paid' | 'Pending' | 'Overdue'
+  createdAt: string
+  paymentHistory?: { paymentDate: string; amountPaid: string }[]
+}
+
+type PaymentHistory = {
+  id: number
+  installmentId: number
+  amountPaid: string
+  paymentDate: string
+  createdAt: string
+  patientName: string
+  installmentNumber?: number
+}
+
+const reportTabs: { key: ReportType; label: string }[] = [
+  { key: "expenses", label: "ڕاپۆرتی خەرجیەکان" },
+  { key: "employees", label: "ڕاپۆرتی کارمەندەکان" },
+  { key: "installments", label: "ڕاپۆرتی قیسەکان" },
+  { key: "sales", label: "ڕاپۆرتی فرۆشتن" },
+]
+
+function formatMoney(value: string | number) {
+  const numeric = Number(value) || 0
+  return `${numeric.toLocaleString("en-US")} د.ع`
+}
+
+function formatDate(dateValue: string) {
+  const parsed = new Date(dateValue)
+  if (Number.isNaN(parsed.getTime())) return "-"
+  return parsed.toLocaleDateString("en-CA")
+}
+
+function matchesPeriod(dateValue: string, period: PeriodType, customDate: string) {
+  if (period === "all") return true
+
+  const current = new Date(dateValue)
+  if (Number.isNaN(current.getTime())) return false
+
+  const now = new Date()
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const inputStart = new Date(current.getFullYear(), current.getMonth(), current.getDate())
+
+  if (period === "today") {
+    return inputStart.getTime() === todayStart.getTime()
+  }
+
+  if (period === "week") {
+    const sevenDaysAgo = new Date(todayStart)
+    sevenDaysAgo.setDate(todayStart.getDate() - 6)
+    return inputStart >= sevenDaysAgo && inputStart <= todayStart
+  }
+
+  if (period === "month") {
+    return (
+      inputStart.getFullYear() === now.getFullYear() &&
+      inputStart.getMonth() === now.getMonth()
+    )
+  }
+
+  if (period === "custom") {
+    if (!customDate) return true
+    const selected = new Date(`${customDate}T00:00:00`)
+    if (Number.isNaN(selected.getTime())) return false
+    return (
+      inputStart.getFullYear() === selected.getFullYear() &&
+      inputStart.getMonth() === selected.getMonth() &&
+      inputStart.getDate() === selected.getDate()
+    )
+  }
+
+  return inputStart.getFullYear() === now.getFullYear()
+}
+
+function ReportsPageContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const typeParam = searchParams.get("type")
+  const activeReport: ReportType =
+    typeParam === "installments" ? "installments" :
+    typeParam === "employees" ? "employees" :
+    typeParam === "sales" ? "sales" :
+    typeParam === "payment-history" ? "payment-history" : "expenses"
+
+  const [expenses, setExpenses] = useState<Expense[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [monthlyRecords, setMonthlyRecords] = useState<PayrollRecord[]>([])
+  const [sales, setSales] = useState<Sale[]>([])
+  const [installments, setInstallments] = useState<Installment[]>([])
+  const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([])
+  const [loading, setLoading] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [period, setPeriod] = useState<PeriodType>("today")
+  const [customDate, setCustomDate] = useState(new Date().toISOString().slice(0, 10))
+  const [paymentHistoryModalOpen, setPaymentHistoryModalOpen] = useState(false)
+  const [selectedInstallment, setSelectedInstallment] = useState<Installment | null>(null)
+  const [selectedPatient, setSelectedPatient] = useState<string>("all")
+  const [syncingPayment, setSyncingPayment] = useState(false)
+
+  // Month/Year filtering for employee reports
+  const currentDate = new Date()
+  const [selectedReportYear, setSelectedReportYear] = useState(currentDate.getFullYear())
+  const [selectedReportMonth, setSelectedReportMonth] = useState(currentDate.getMonth() + 1)
+
+  const fetchReports = useCallback(async () => {
+    setLoading(true)
+    try {
+      const selectedMonthKey = `${String(selectedReportMonth).padStart(2, '0')}-${selectedReportYear}`
+      const [expensesRes, employeesRes, monthlyRecordsRes, salesRes, installmentsRes, paymentHistoryRes] = await Promise.all([
+        fetch("/api/expenses?scope=all", { cache: "no-store" }),
+        fetch("/api/staff", { cache: "no-store" }),
+        fetch(`/api/payroll?monthKey=${encodeURIComponent(selectedMonthKey)}`, { cache: "no-store" }),
+        fetch("/api/sales", { cache: "no-store" }),
+        fetch("/api/installments", { cache: "no-store" }),
+        fetch("/api/installments/payment-history", { cache: "no-store" }),
+      ])
+
+      if (expensesRes.ok) {
+        const expenseData = await expensesRes.json()
+        setExpenses(Array.isArray(expenseData) ? expenseData : [])
+      }
+
+      if (employeesRes.ok) {
+        const employeeData = await employeesRes.json()
+        setEmployees(Array.isArray(employeeData) ? employeeData : [])
+      }
+
+      if (monthlyRecordsRes.ok) {
+        const payrollData = await monthlyRecordsRes.json()
+        setMonthlyRecords(Array.isArray(payrollData) ? payrollData : [])
+      }
+
+      if (salesRes.ok) {
+        const salesData = await salesRes.json()
+        setSales(Array.isArray(salesData) ? salesData : [])
+      }
+
+      if (installmentsRes.ok) {
+        const installmentData = await installmentsRes.json()
+        setInstallments(Array.isArray(installmentData) ? installmentData : [])
+      }
+
+      if (paymentHistoryRes.ok) {
+        const paymentHistoryData = await paymentHistoryRes.json()
+        setPaymentHistory(Array.isArray(paymentHistoryData) ? paymentHistoryData : [])
+      }
+    } catch (error) {
+      console.error("Error fetching reports:", error)
+      toast.error("هەڵە لە هێنانی داتا")
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedReportYear, selectedReportMonth])
+
+  useEffect(() => {
+    fetchReports()
+  }, [fetchReports])
+
+  const filteredExpenses = useMemo(
+    () => expenses.filter((row) => matchesPeriod(row.date, period, customDate)),
+    [expenses, period, customDate],
+  )
+
+  const filteredEmployees = useMemo(
+    () => employees,
+    [employees],
+  )
+
+  // Calculate employee payroll data for the selected month
+  const employeePayrollReports = useMemo(() => {
+    return employees.map((employee) => {
+      const basicSalary = parseFloat(employee.basicSalary || '0')
+      const employeeAdvances = monthlyRecords.filter(
+        (record) =>
+          record.staffId === employee.id &&
+          record.type === 'Advance' &&
+          !record.isPaid
+      )
+      const totalAdvances = employeeAdvances.reduce(
+        (sum, record) => sum + parseFloat(record.amount || '0'),
+        0
+      )
+      const remainingSalary = basicSalary - totalAdvances
+
+      return {
+        employee,
+        basicSalary,
+        advances: employeeAdvances,
+        totalAdvances,
+        remainingSalary,
+      }
+    })
+  }, [employees, monthlyRecords])
+
+  const filteredTransactions = useMemo(
+    () => monthlyRecords.filter((row) => matchesPeriod(row.date, period, customDate)),
+    [monthlyRecords, period, customDate],
+  )
+
+  const filteredSales = useMemo(
+    () => sales.filter((row) => matchesPeriod(row.date, period, customDate)),
+    [sales, period, customDate],
+  )
+
+  const filteredInstallments = useMemo(
+    () => installments.filter((row) => matchesPeriod(row.createdAt, period, customDate)),
+    [installments, period, customDate],
+  )
+
+  const filteredInstallmentsByPatient = useMemo(
+    () => {
+      let result = filteredInstallments
+      if (selectedPatient !== "all") {
+        result = result.filter(row => row.patientName === selectedPatient)
+      }
+      return result
+    },
+    [filteredInstallments, selectedPatient],
+  )
+
+  const uniquePatients = useMemo(
+    () => Array.from(new Set(installments.map(inst => inst.patientName))).sort(),
+    [installments],
+  )
+
+  const filteredPaymentHistory = useMemo(
+    () => paymentHistory.filter((row) => matchesPeriod(row.paymentDate, period, customDate)),
+    [paymentHistory, period, customDate],
+  )
+
+  const expenseTotal = useMemo(
+    () => filteredExpenses.reduce((sum, row) => sum + Number(row.amount || 0), 0),
+    [filteredExpenses],
+  )
+
+  const employeesTotal = useMemo(() => {
+    return employeePayrollReports.reduce((sum, report) => sum + report.remainingSalary, 0)
+  }, [employeePayrollReports])
+
+  const salesTotal = useMemo(
+    () => filteredSales.reduce((sum, row) => sum + Number(row.profit || 0), 0),
+    [filteredSales],
+  )
+
+  const installmentsTotal = useMemo(
+    () => filteredInstallments.reduce((sum, row) => sum + Number(row.remainingAmount || 0), 0),
+    [filteredInstallments],
+  )
+
+  const paymentHistoryTotal = useMemo(
+    () => filteredPaymentHistory.reduce((sum, row) => sum + Number(row.amountPaid || 0), 0),
+    [filteredPaymentHistory],
+  )
+
+  const onChangeReport = (nextReport: ReportType) => {
+    router.push(`/dashboard/reports?type=${nextReport}`)
+  }
+
+  const printEmployee = async (employee: Employee) => {
+    let iframe: HTMLIFrameElement | null = null
+    try {
+      const selectedMonthKey = `${String(selectedReportMonth).padStart(2, '0')}-${selectedReportYear}`
+      const advanceTransactions = monthlyRecords.filter(t => 
+        t.staffId === employee.id && 
+        t.type === 'Advance' &&
+        t.monthKey === selectedMonthKey
+      )
+      const totalAdvance = advanceTransactions.reduce((sum, t) => sum + Number(t.amount || 0), 0)
+      const remainingSalary = Number(employee.basicSalary) - totalAdvance
+
+      const advanceRowsHtml = advanceTransactions.length > 0
+        ? advanceTransactions.map((t, i) => `
+            <tr>
+              <td style="border:1px solid #d1d5db;padding:8px;text-align:center;">${i + 1}</td>
+              <td style="border:1px solid #d1d5db;padding:8px;">${formatDate(t.date)}</td>
+              <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(t.amount)}</td>
+              <td style="border:1px solid #d1d5db;padding:8px;">${t.note || '-'}</td>
+            </tr>
+          `).join('')
+        : `<tr><td colspan="4" style="border:1px solid #d1d5db;padding:8px;text-align:center;">هیچ پێشەکییەک تۆمار نەکراوە</td></tr>`
+
+      const employeeHtml = `
+        <div id="pdf-employee" style="direction:rtl;font-family:Arial,sans-serif;background:#ffffff;color:#0f172a;padding:20px;width:900px;">
+          <h1 style="margin:0 0 6px 0;text-align:center;font-size:24px;color:#0f172a;">شا سیستەم - زانیاری کارمەند</h1>
+          <p style="margin:0 0 20px 0;text-align:center;color:#475569;font-size:14px;">بەرواری پرێنت: ${new Date().toLocaleDateString("ku-IQ")}</p>
+          <p style="margin:0 0 20px 0;text-align:center;color:#475569;font-size:14px;">مانگی راپۆرت: ${String(selectedReportMonth).padStart(2, '0')}-${selectedReportYear}</p>
+          
+          <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px;">
+            <thead>
+              <tr>
+                <th colspan="2" style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;font-weight:bold;">زانیاری کەسی</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;width:30%;background:#f9fafb;font-weight:bold;">ناوی تەواو:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${employee.fullName}</td>
+              </tr>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;background:#f9fafb;font-weight:bold;">پلە:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${employee.role}</td>
+              </tr>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;background:#f9fafb;font-weight:bold;">ژمارە تەلەفۆن:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${employee.phonenumber}</td>
+              </tr>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;background:#f9fafb;font-weight:bold;">تەمەن:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${employee.age || '-'}</td>
+              </tr>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;background:#f9fafb;font-weight:bold;">ناونیشان:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${employee.address || '-'}</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px;">
+            <thead>
+              <tr>
+                <th colspan="2" style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;font-weight:bold;">زانیاری مووچە</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;width:30%;background:#f9fafb;font-weight:bold;">مووچەی بنەڕەت:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(employee.basicSalary)}</td>
+              </tr>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;background:#f9fafb;font-weight:bold;">کۆی پێشەکییەکان:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${totalAdvance > 0 ? formatMoney(totalAdvance) : '0 د.ع'}</td>
+              </tr>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;background:#f9fafb;font-weight:bold;">بڕی ماوەی مووچە:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(remainingSalary)}</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <h3 style="margin:20px 0 10px 0;font-size:16px;font-weight:bold;text-align:center;">لیستی پێشەکییەکان</h3>
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr>
+                <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;">#</th>
+                <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;">بەروار</th>
+                <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;">بڕی پارە</th>
+                <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;">تێبینی</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${advanceRowsHtml}
+            </tbody>
+          </table>
+          
+          <div style="margin-top:40px;text-align:center;font-size:12px;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:20px;">
+            <p>ئەم راپۆرتە لەلایەن شا سیستەم دروستکراوە</p>
+          </div>
+        </div>
+      `
+
+      iframe = document.createElement("iframe")
+      iframe.style.position = "fixed"
+      iframe.style.right = "0"
+      iframe.style.bottom = "0"
+      iframe.style.width = "0"
+      iframe.style.height = "0"
+      iframe.style.border = "0"
+      document.body.appendChild(iframe)
+
+      const iframeDoc = iframe.contentDocument
+      if (!iframeDoc) {
+        throw new Error("iframe document is not available")
+      }
+
+      iframeDoc.open()
+      iframeDoc.write(`<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#fff;">${employeeHtml}</body></html>`)
+      iframeDoc.close()
+
+      await new Promise((resolve) => setTimeout(resolve, 120))
+
+      const reportElement = iframeDoc.getElementById("pdf-employee")
+      if (!reportElement) {
+        throw new Error("report element is missing")
+      }
+
+      const canvas = await html2canvas(reportElement, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+      })
+
+      const image = canvas.toDataURL("image/jpeg", 0.95)
+      const doc = new jsPDF("p", "mm", "a4")
+
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      const margin = 10
+      const width = pageWidth - margin * 2
+      const ratio = width / canvas.width
+      const imageHeight = canvas.height * ratio
+
+      let remaining = imageHeight
+      let y = margin
+
+      doc.addImage(image, "JPEG", margin, y, width, imageHeight, undefined, "MEDIUM")
+      remaining -= pageHeight - margin * 2
+
+      while (remaining > 0) {
+        doc.addPage()
+        y = margin - (imageHeight - remaining)
+        doc.addImage(image, "JPEG", margin, y, width, imageHeight, undefined, "MEDIUM")
+        remaining -= pageHeight - margin * 2
+      }
+
+      const fileName = `employee-${employee.fullName.replace(/\s+/g, '_')}-${new Date().toISOString().slice(0, 10)}.pdf`
+      doc.save(fileName)
+      toast.success("PDF بە سەرکەوتوویی دابەزێنرا")
+    } catch (error) {
+      console.error("PDF export error:", error)
+      const errorMessage = error instanceof Error ? error.message : "unknown"
+      toast.error(`هەڵە لە دروستکردنی PDF: ${errorMessage}`)
+    } finally {
+      if (iframe && document.body.contains(iframe)) {
+        document.body.removeChild(iframe)
+      }
+    }
+  }
+
+  const syncPaymentAmounts = async () => {
+    if (!selectedInstallment) return;
+    setSyncingPayment(true);
+    try {
+      const response = await fetch('/api/installments/sync-payment-amounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ installmentId: selectedInstallment.id }),
+      });
+      if (response.ok) {
+        toast.success('بڕی دراو ڕێکخرا');
+        await fetchReports();
+        setPaymentHistoryModalOpen(false);
+      } else {
+        toast.error('هەڵە لە ڕێکخستنی بڕی دراو');
+      }
+    } catch (error) {
+      toast.error('هەڵەیەک ڕویدا');
+    } finally {
+      setSyncingPayment(false);
+    }
+  };
+
+  const savePdf = async () => {
+    let iframe: HTMLIFrameElement | null = null
+    setExporting(true)
+    try {
+      const rowCount =
+        activeReport === "expenses" ? filteredExpenses.length :
+        activeReport === "employees" ? employeePayrollReports.length :
+        activeReport === "sales" ? filteredSales.length :
+        activeReport === "payment-history" ? filteredPaymentHistory.length :
+        filteredInstallmentsByPatient.length
+
+      if (rowCount === 0) {
+        toast.error("هیچ داتایەک نییە بۆ دروستکردنی PDF")
+        return
+      }
+
+      const reportTitle =
+        activeReport === "expenses"
+          ? "   شا سیستەم - ڕاپۆرتی خەرجیەکان"
+          : activeReport === "employees"
+          ? "شا سیستەم - ڕاپۆرتی کارمەندەکان"
+          : activeReport === "sales"
+          ? "شا سیستەم - ڕاپۆرتی فرۆشتن"
+          : activeReport === "payment-history"
+          ? "شا سیستەم - مێژووی پارەدان"
+          : "شا سیستەم - ڕاپۆرتی قیسەکان"
+
+      const total = activeReport === "expenses" ? expenseTotal : activeReport === "employees" ? employeesTotal : activeReport === "sales" ? salesTotal : activeReport === "payment-history" ? paymentHistoryTotal : filteredInstallmentsByPatient.reduce((sum, row) => sum + Number(row.remainingAmount || 0), 0)
+
+      const rowsHtml =
+        activeReport === "expenses"
+          ? filteredExpenses
+              .map(
+                (item, index) => `
+                  <tr>
+                    <td style="border:1px solid #d1d5db;padding:8px;text-align:center;">${index + 1}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${formatDate(item.date)}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${item.title}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${item.category}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${item.paymentMethod}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(item.amount)}</td>
+                  </tr>
+                `,
+              )
+              .join("")
+          : activeReport === "employees"
+          ? employeePayrollReports
+              .map(
+                (report, index) => `
+                  <tr>
+                    <td style="border:1px solid #d1d5db;padding:8px;text-align:center;">${index + 1}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${report.employee.fullName}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${report.employee.role}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${report.employee.phonenumber}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(report.basicSalary)}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(report.totalAdvances)}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${report.advances.map(a => a.note || '-').join(', ') || '-'}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(report.remainingSalary)}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${String(selectedReportMonth).padStart(2, '0')}-${selectedReportYear}</td>
+                  </tr>
+                `,
+              )
+              .join("")
+          : activeReport === "sales"
+          ? filteredSales
+              .map(
+                (item, index) => `
+                  <tr>
+                    <td style="border:1px solid #d1d5db;padding:8px;text-align:center;">${index + 1}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${formatDate(item.date)}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${item.productName}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${item.category}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(item.price)}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${item.quantity}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(item.totalPrice)}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(item.profit)}</td>
+                  </tr>
+                `,
+              )
+              .join("")
+          : activeReport === "payment-history"
+          ? filteredPaymentHistory
+              .map(
+                (item, index) => `
+                  <tr>
+                    <td style="border:1px solid #d1d5db;padding:8px;text-align:center;">${index + 1}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${formatDate(item.paymentDate)}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${item.patientName}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${item.installmentNumber ? `قیست ${item.installmentNumber}` : '-'}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(item.amountPaid)}</td>
+                  </tr>
+                `,
+              )
+              .join("")
+          : filteredInstallmentsByPatient
+              .map((item, index) => {
+                const getStatusLabel = (status: string) => {
+                  switch (status) {
+                    case 'Paid': return 'دراوە'
+                    case 'Pending': return 'چاوەڕوانکراوە'
+                    case 'Overdue': return 'دواکەوتووە'
+                    default: return status
+                  }
+                }
+                const paymentCount = item.paymentHistory ? item.paymentHistory.length : 0
+                return `
+                  <tr>
+                    <td style="border:1px solid #d1d5db;padding:8px;text-align:center;">${index + 1}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${formatDate(item.createdAt)}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${item.patientName}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(item.totalAmount)}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(item.paidAmount)}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(item.remainingAmount)}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(item.installmentValue)}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${paymentCount > 0 ? `${paymentCount} پارەدان` : '-'}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${item.nextPaymentDate ? formatDate(item.nextPaymentDate) : '-'}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${getStatusLabel(item.status)}</td>
+                  </tr>
+                `
+              })
+              .join("")
+
+      let paymentHistoryTableHtml = ''
+      if (activeReport === "installments") {
+        const installmentsWithHistory = filteredInstallmentsByPatient.filter(item => item.paymentHistory && item.paymentHistory.length > 0)
+        
+        if (installmentsWithHistory.length > 0) {
+          paymentHistoryTableHtml = `
+            <div style="margin-top:30px;">
+              <h2 style="margin:0 0 14px 0;font-size:18px;font-weight:bold;">خشتەی مێژووی پارەدان بە بەروار</h2>
+              <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead>
+                  <tr>
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بەرواری پارەدان</th>
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ناوی نەخۆش</th>
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بڕی پارە</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${installmentsWithHistory.flatMap(item => 
+                    item.paymentHistory!.map(ph => `
+                      <tr>
+                        <td style="border:1px solid #d1d5db;padding:8px;">${formatDate(ph.paymentDate)}</td>
+                        <td style="border:1px solid #d1d5db;padding:8px;">${item.patientName}</td>
+                        <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(ph.amountPaid)}</td>
+                      </tr>
+                    `)
+                  ).join('')}
+                </tbody>
+              </table>
+            </div>
+          `
+        }
+      }
+
+      const reportHtml = `
+        <div id="pdf-report" style="direction:rtl;font-family:Arial,sans-serif;background:#ffffff;color:#0f172a;padding:20px;width:900px;">
+          <h1 style="margin:0 0 6px 0;text-align:center;font-size:24px;">${reportTitle}</h1>
+          <p style="margin:0 0 14px 0;text-align:center;color:#475569;">بەرواری دروستکردن: ${new Date().toLocaleDateString("en-CA")}</p>
+          <p style="margin:0 0 14px 0;font-weight:700;">کۆی گشتی: ${formatMoney(total)}</p>
+
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr>
+                ${activeReport === "employees" ? '' : '<th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">#</th>'}
+                ${activeReport === "employees" ? '' : '<th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بەروار</th>'}
+                ${activeReport === "expenses" ? `
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ناونیشان</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">جۆر</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">شێوازی پارەدان</th>
+                ` : activeReport === "employees" ? `
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">#</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ناوی کارمەند</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">پلە</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ژمارە تەلەفۆن</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">مووچەی بنەڕەتی</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">کۆی پێشەکییەکان</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">تێبینی</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بڕی ماوەی مووچە</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">مانگ</th>
+                ` : activeReport === "sales" ? `
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ناوی کاڵا</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">پۆل</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">نرخی فرۆشتن</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بڕی فرۆشتن</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">کۆی فرۆشتن</th>
+                ` : activeReport === "payment-history" ? `
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ناوی نەخۆش</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ژمارەی قیست</th>
+                ` : `
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ناوی نەخۆش</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">کۆی گشتی</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بڕی دراو</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بڕی ماوە</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">قیستی مانگانە</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بەرواری پارەدان</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بەرواری داهاتوو</th>
+                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بارودۆخ</th>
+                `}
+                ${activeReport === "payment-history" ? `<th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بڕی پارە</th>` : `<th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بڕی پارە</th>`}
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+          ${paymentHistoryTableHtml}
+        </div>
+      `
+
+      iframe = document.createElement("iframe")
+      iframe.style.position = "fixed"
+      iframe.style.right = "0"
+      iframe.style.bottom = "0"
+      iframe.style.width = "0"
+      iframe.style.height = "0"
+      iframe.style.border = "0"
+      document.body.appendChild(iframe)
+
+      const iframeDoc = iframe.contentDocument
+      if (!iframeDoc) {
+        throw new Error("iframe document is not available")
+      }
+
+      iframeDoc.open()
+      iframeDoc.write(`<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#fff;">${reportHtml}</body></html>`)
+      iframeDoc.close()
+
+      await new Promise((resolve) => setTimeout(resolve, 120))
+
+      const reportElement = iframeDoc.getElementById("pdf-report")
+      if (!reportElement) {
+        throw new Error("report element is missing")
+      }
+
+      const canvas = await html2canvas(reportElement, {
+        backgroundColor: "#ffffff",
+        scale: 1.4,
+        useCORS: true,
+        logging: false,
+      })
+
+      const image = canvas.toDataURL("image/jpeg", 0.72)
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true })
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      const margin = 10
+      const width = pageWidth - margin * 2
+      const ratio = width / canvas.width
+      const imageHeight = canvas.height * ratio
+
+      let remaining = imageHeight
+      let y = margin
+
+      doc.addImage(image, "JPEG", margin, y, width, imageHeight, undefined, "MEDIUM")
+      remaining -= pageHeight - margin * 2
+
+      while (remaining > 0) {
+        doc.addPage()
+        y = margin - (imageHeight - remaining)
+        doc.addImage(image, "JPEG", margin, y, width, imageHeight, undefined, "MEDIUM")
+        remaining -= pageHeight - margin * 2
+      }
+
+      const fileName =
+        activeReport === "expenses"
+          ? `expense-report-${new Date().toISOString().slice(0, 10)}.pdf`
+          : activeReport === "employees"
+          ? `employees-report-${new Date().toISOString().slice(0, 10)}.pdf`
+          : activeReport === "sales"
+          ? `sales-report-${new Date().toISOString().slice(0, 10)}.pdf`
+          : activeReport === "payment-history"
+          ? `payment-history-report-${new Date().toISOString().slice(0, 10)}.pdf`
+          : `installments-report-${new Date().toISOString().slice(0, 10)}.pdf`
+
+      doc.save(fileName)
+      toast.success("PDF بە سەرکەوتوویی دابەزێنرا")
+    } catch (error) {
+      console.error("PDF export error:", error)
+      const errorMessage = error instanceof Error ? error.message : "unknown"
+      toast.error(`هەڵە لە دروستکردنی PDF: ${errorMessage}`)
+    } finally {
+      if (iframe && document.body.contains(iframe)) {
+        document.body.removeChild(iframe)
+      }
+      setExporting(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4" dir="rtl">
+      <div>
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">ڕاپۆرتەکان</h1>
+          
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {activeReport !== "employees" && (
+          <Card className="relative border border-[#2ea7b8] shadow-lg p-6 pl-20 md:col-span-2">
+            <div className="absolute left-6 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-[#3dc1d3]/15 text-[#2ea7b8]">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div className="mb-4 flex items-center justify-start gap-2 text-[#2ea7b8]">
+              <p className="text-sm text-[#3dc1d3] dark:text-[#35aebb]">هەڵبژاردنی ماوە</p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="w-full text-right">
+                <Select value={period} onValueChange={(value: PeriodType) => setPeriod(value)}>
+                  <SelectTrigger className="h-10 rounded-lg text-right border-2 focus-visible:ring-[#2ea7b8]/25">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">ڕۆژانە (ئەمڕۆ)</SelectItem>
+                    <SelectItem value="week">هەفتانە - 7 ڕۆژی ڕابردوو </SelectItem>
+                    <SelectItem value="month">مانگانە (ئەم مانگە)</SelectItem>
+                    <SelectItem value="year">ساڵانە (ئەم ساڵە)</SelectItem>
+                    <SelectItem value="custom">بەرواری دیاریکراو</SelectItem>
+                    <SelectItem value="all">هەموو ماوەکان</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {period === "custom" ? (
+                <div className="w-full text-right">
+                  <Input
+                    type="date"
+                    value={customDate}
+                    onChange={(e) => setCustomDate(e.target.value)}
+                    className="h-10 rounded-lg"
+                  />
+                </div>
+              ) : (
+                <div className="hidden md:block" />
+              )}
+            </div>
+          </Card>
+        )}
+
+        {activeReport === "employees" && (
+          <Card className="relative border border-[#2ea7b8] shadow-lg p-6 pl-20 md:col-span-2">
+            <div className="absolute left-6 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-[#3dc1d3]/15 text-[#2ea7b8]">
+              <User className="h-5 w-5" />
+            </div>
+            <div className="mb-4 flex items-center justify-start gap-2 text-[#2ea7b8]">
+              <p className="text-sm text-[#3dc1d3] dark:text-[#35aebb]">ڕاپۆرتی مانگانەی کارمەندەکان</p>
+            </div>
+            <div className="flex gap-2 mb-2">
+              <Select
+                value={selectedReportYear.toString()}
+                onValueChange={(value) => setSelectedReportYear(Number(value))}
+              >
+                <SelectTrigger className="w-32 border-border/90 focus-visible:ring-2 focus-visible:ring-primary/20">
+                  <SelectValue placeholder="ساڵ" />
+                </SelectTrigger>
+                <SelectContent dir="rtl">
+                  {Array.from({ length: 20 }, (_, i) => 2020 + i).map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={selectedReportMonth.toString()}
+                onValueChange={(value) => setSelectedReportMonth(Number(value))}
+              >
+                <SelectTrigger className="w-40 border-border/90 focus-visible:ring-2 focus-visible:ring-primary/20">
+                  <SelectValue placeholder="مانگ" />
+                </SelectTrigger>
+                <SelectContent dir="rtl">
+                  {[
+                    { value: 1, label: 'کانونی دووەم' },
+                    { value: 2, label: 'شوبات' },
+                    { value: 3, label: 'ئازار' },
+                    { value: 4, label: 'نیسان' },
+                    { value: 5, label: 'ئایار' },
+                    { value: 6, label: 'حوزەیران' },
+                    { value: 7, label: 'تەممووز' },
+                    { value: 8, label: 'ئاب' },
+                    { value: 9, label: 'ئەیلول' },
+                    { value: 10, label: 'تشرینی یەکەم' },
+                    { value: 11, label: 'تشرینی دووەم' },
+                    { value: 12, label: 'کانونی یەکەم' },
+                  ].map((month) => (
+                    <SelectItem key={month.value} value={month.value.toString()}>
+                      {month.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              داتای مانگانەی کارمەندان پیشان دەدرێت. دەتوانیت بەپێی مانگ و ساڵ بگەڕێی.
+            </div>
+          </Card>
+        )}
+
+        <Card className="border border-red-500 shadow-lg p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-red-600 dark:text-red-400">
+                {activeReport === "expenses" ? "کۆی گشتی خەرجیەکان" :
+                 activeReport === "employees" ? "کۆی گشتی مووچەکان" :
+                 activeReport === "sales" ? "کۆی گشتی قازانج" :
+                 activeReport === "payment-history" ? "کۆی گشتی پارەدان" : "کۆی گشتی قیسەکان"}
+              </p>
+              <p className="mt-2 text-2xl font-bold text-red-900 dark:text-red-100">
+                {formatMoney(activeReport === "expenses" ? expenseTotal : activeReport === "employees" ? employeesTotal : activeReport === "sales" ? salesTotal : activeReport === "payment-history" ? paymentHistoryTotal : installmentsTotal)}
+              </p>
+            </div>
+            <div className="inline-flex h-10 mt-4 w-10 items-center justify-center rounded-full bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">
+              <Wallet className="h-5 w-5 " />
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      <div className="flex items-center gap-2 overflow-x-auto pb-2">
+        {reportTabs.map((tab) => (
+          <Button
+            key={tab.key}
+            variant={activeReport === tab.key ? "default" : "outline"}
+            className={activeReport === tab.key ? "bg-[#3dc1d3] hover:bg-[#35aebb]" : "whitespace-nowrap"}
+            onClick={() => onChangeReport(tab.key)}
+          >
+            {tab.key === "expenses" ? <TrendingDown className="h-4 w-4" /> :
+             tab.key === "employees" ? <User className="h-4 w-4" /> :
+             tab.key === "sales" ? <TrendingUp className="h-4 w-4" /> :
+             tab.key === "payment-history" ? <Wallet className="h-4 w-4" /> :
+             <Wallet className="h-4 w-4" />}
+            {tab.label}
+          </Button>
+        ))}
+      </div>
+
+      <div className="flex justify-start">
+        <Button onClick={savePdf} disabled={exporting || loading} className="bg-[#3dc1d3] hover:bg-[#35aebb]">
+          <FileText className="h-4 w-4" />
+          {exporting ? "ئامادەکردنی PDF..." : " پرێنت / pdf"}
+        </Button>
+      </div>
+
+      <div>
+      {activeReport === "expenses" ? (
+        <div className="rounded-xl border border-border/40 shadow-lg overflow-hidden bg-card">
+          <div className="overflow-x-auto">
+            <Table>
+            <TableHeader className="bg-primary/5 border-b border-border/40">
+              <TableRow className="hover:bg-primary/2 transition-colors">
+                <TableHead className="text-right text-primary font-bold">#</TableHead>
+                <TableHead className="text-right text-primary font-bold">بەروار</TableHead>
+                <TableHead className="text-right text-primary font-bold">ناونیشان</TableHead>
+                <TableHead className="text-right text-primary font-bold">جۆر</TableHead>
+                <TableHead className="text-right text-primary font-bold">شێوازی پارەدان</TableHead>
+                <TableHead className="text-right text-primary font-bold">بڕی پارە</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    ...چاوەڕوانبە
+                  </TableCell>
+                </TableRow>
+              ) : filteredExpenses.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-12 text-muted-foreground hover:bg-transparent">
+                    هیچ خەرجییەک تۆمار نەکراوە.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredExpenses.map((expense, index) => (
+                  <TableRow
+                    key={expense.id}
+                    className={`transition-all duration-200 border-b border-gray-100 dark:border-gray-800 ${
+                      index % 2 === 0
+                        ? "bg-white dark:bg-slate-950"
+                        : "bg-primary/2 dark:bg-slate-900/30"
+                    } hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors`}
+                  >
+                    <TableCell className="text-xs font-semibold text-foreground">{index + 1}</TableCell>
+                    <TableCell className="text-xs font-semibold text-foreground/80">{formatDate(expense.date)}</TableCell>
+                    <TableCell className="text-xs font-semibold text-foreground">{expense.title}</TableCell>
+                    <TableCell className="text-xs font-semibold text-foreground/80">{expense.category}</TableCell>
+                    <TableCell className="text-xs font-semibold text-foreground/80">{expense.paymentMethod}</TableCell>
+                    <TableCell>
+                      <span className="inline-flex h-5 items-center justify-center whitespace-nowrap rounded-4xl bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800 dark:bg-red-900/40 dark:text-red-300">
+                        {formatMoney(expense.amount)}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+          </div>
+        </div>
+      ) : null}
+
+      {activeReport === "employees" ? (
+        <div className="rounded-xl border border-border/40 shadow-lg overflow-hidden bg-card">
+          <div className="overflow-x-auto">
+            <Table>
+            <TableHeader className="bg-primary/5 border-b border-border/40">
+              <TableRow className="hover:bg-primary/2 transition-colors">
+                <TableHead className="text-right text-primary font-bold">ناوی کارمەند</TableHead>
+                <TableHead className="text-right text-primary font-bold">پلە</TableHead>
+                <TableHead className="text-right text-primary font-bold">ژمارە تەلەفۆن</TableHead>
+                <TableHead className="text-right text-primary font-bold">مووچەی بنەڕەتی</TableHead>
+                <TableHead className="text-right text-primary font-bold">کۆی پێشەکییەکان</TableHead>
+                <TableHead className="text-right text-primary font-bold">تێبینی</TableHead>
+                <TableHead className="text-right text-primary font-bold">بڕی ماوەی مووچە</TableHead>
+                <TableHead className="text-right text-primary font-bold">مانگ</TableHead>
+                <TableHead className="text-right text-primary font-bold">پرێنت</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center text-muted-foreground">
+                    ...چاوەڕوانبە
+                  </TableCell>
+                </TableRow>
+              ) : employeePayrollReports.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-12 text-muted-foreground hover:bg-transparent">
+                    هیچ کارمەندێک تۆمار نەکراوە.
+                  </TableCell>
+                </TableRow>
+              ) : employeePayrollReports.map((report, index) => (
+                <TableRow
+                  key={report.employee.id}
+                  className={`transition-all duration-200 border-b border-gray-100 dark:border-gray-800 ${
+                    index % 2 === 0 
+                      ? 'bg-white dark:bg-slate-950' 
+                      : 'bg-primary/2 dark:bg-slate-900/30'
+                  } hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors`}
+                >
+                  <TableCell className="text-xs font-semibold text-foreground">
+                    {report.employee.fullName}
+                  </TableCell>
+                  <TableCell className="text-xs font-semibold text-foreground/80">{report.employee.role}</TableCell>
+                  <TableCell className="text-xs font-semibold text-foreground/80">{report.employee.phonenumber}</TableCell>
+                  <TableCell className="text-foreground/70">
+                    <span className="inline-flex h-5 items-center justify-center whitespace-nowrap rounded-4xl bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800 dark:bg-green-900/40 dark:text-green-300">
+                      {formatMoney(report.basicSalary)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-foreground/70">
+                    <span className="inline-flex h-5 items-center justify-center whitespace-nowrap rounded-4xl bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800 dark:bg-red-900/40 dark:text-red-300">
+                      {formatMoney(report.totalAdvances)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-xs font-semibold text-foreground/80">
+                    {report.advances.map(a => a.note || '-').join(', ') || '-'}
+                  </TableCell>
+                  <TableCell className="text-foreground/70">
+                    <span className="inline-flex h-5 items-center justify-center whitespace-nowrap rounded-4xl bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800 dark:bg-green-900/40 dark:text-green-300">
+                      {formatMoney(report.remainingSalary)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-xs font-semibold text-foreground/80">
+                    {String(selectedReportMonth).padStart(2, '0')}-{selectedReportYear}
+                  </TableCell>
+                  <TableCell className="text-xs font-semibold text-foreground/80">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => printEmployee(report.employee)}
+                    >
+                      <Printer className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          </div>
+        </div>
+      ) : null}
+
+      {activeReport === "installments" ? (
+        <div className="rounded-xl border border-border/40 shadow-lg overflow-hidden bg-card">
+          <div className="p-4 border-b border-border/40 bg-primary/5">
+            <div className="flex items-center gap-4">
+              <label className="text-sm font-semibold text-foreground">فلتەری نەخۆش:</label>
+              <Select value={selectedPatient} onValueChange={setSelectedPatient}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="هەموو نەخۆشەکان" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">هەموو نەخۆشەکان</SelectItem>
+                  {uniquePatients.map(patient => (
+                    <SelectItem key={patient} value={patient}>{patient}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <Table>
+            <TableHeader className="bg-primary/5 border-b border-border/40">
+              <TableRow className="hover:bg-primary/2 transition-colors">
+                <TableHead className="text-right text-primary font-bold">#</TableHead>
+                <TableHead className="text-right text-primary font-bold">بەروار</TableHead>
+                <TableHead className="text-right text-primary font-bold">ناوی نەخۆش</TableHead>
+                <TableHead className="text-right text-primary font-bold">کۆی گشتی</TableHead>
+                <TableHead className="text-right text-primary font-bold">بڕی دراو</TableHead>
+                <TableHead className="text-right text-primary font-bold">بڕی ماوە</TableHead>
+                <TableHead className="text-right text-primary font-bold">قیستی مانگانە</TableHead>
+                <TableHead className="text-right text-primary font-bold">بەرواری پارەدان</TableHead>
+                <TableHead className="text-right text-primary font-bold">بەرواری داهاتوو</TableHead>
+                <TableHead className="text-right text-primary font-bold">بارودۆخ</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={10} className="text-center text-muted-foreground">
+                    ...چاوەڕوانبە
+                  </TableCell>
+                </TableRow>
+              ) : filteredInstallmentsByPatient.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={10} className="text-center py-12 text-muted-foreground hover:bg-transparent">
+                    هیچ داتایەکی قیسە بەردەست نییە.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredInstallmentsByPatient.map((item, index) => {
+                  const getStatusLabel = (status: string) => {
+                    switch (status) {
+                      case 'Paid': return 'دراوە'
+                      case 'Pending': return 'چاوەڕوانکراوە'
+                      case 'Overdue': return 'دواکەوتووە'
+                      default: return status
+                    }
+                  }
+                  return (
+                    <TableRow
+                      key={item.id}
+                      className={`transition-all duration-200 border-b border-gray-100 dark:border-gray-800 ${
+                        index % 2 === 0
+                          ? "bg-white dark:bg-slate-950"
+                          : "bg-primary/2 dark:bg-slate-900/30"
+                      } hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors`}
+                    >
+                      <TableCell className="text-xs font-semibold text-foreground">{index + 1}</TableCell>
+                      <TableCell className="text-xs font-semibold text-foreground/80">{formatDate(item.createdAt)}</TableCell>
+                      <TableCell className="text-xs font-semibold text-foreground">{item.patientName}</TableCell>
+                      <TableCell className="text-xs font-semibold text-foreground/80">{formatMoney(item.totalAmount)}</TableCell>
+                      <TableCell className="text-xs font-semibold text-foreground/80">{formatMoney(item.paidAmount)}</TableCell>
+                      <TableCell className="text-xs font-semibold text-foreground/80">{formatMoney(item.remainingAmount)}</TableCell>
+                      <TableCell className="text-xs font-semibold text-foreground/80">{formatMoney(item.installmentValue)}</TableCell>
+                      <TableCell className="text-xs font-semibold text-foreground/80">
+                        {item.paymentHistory && item.paymentHistory.length > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={() => {
+                                setSelectedInstallment(item)
+                                setPaymentHistoryModalOpen(true)
+                              }}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <span className="text-xs text-muted-foreground">
+                              {item.paymentHistory.length} پارەدان
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs font-semibold text-foreground/80">{item.nextPaymentDate ? formatDate(item.nextPaymentDate) : '-'}</TableCell>
+                      <TableCell>
+                        <span className={`inline-flex h-5 items-center justify-center whitespace-nowrap rounded-4xl px-2 py-0.5 text-xs font-semibold ${
+                          item.status === 'Paid' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' :
+                          item.status === 'Pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' :
+                          'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'
+                        }`}>
+                          {getStatusLabel(item.status)}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+          </div>
+        </div>
+      ) : null}
+
+      <Dialog open={paymentHistoryModalOpen} onOpenChange={setPaymentHistoryModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>مێژووی پارەدان - {selectedInstallment?.patientName}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedInstallment && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">کۆی گشتی</p>
+                    <p className="text-lg font-semibold">{formatMoney(selectedInstallment.totalAmount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">بڕی پارەی ماوە</p>
+                    <p className="text-lg font-semibold">{formatMoney(selectedInstallment.remainingAmount)}</p>
+                  </div>
+                </div>
+                {selectedInstallment.paymentHistory && selectedInstallment.paymentHistory.length > 0 && (
+                  <div className="bg-muted/50 p-3 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">بڕی دراو (لە مێژووی پارەدان):</p>
+                        <p className="text-lg font-semibold text-green-600 dark:text-green-400">
+                          {formatMoney(
+                            selectedInstallment.paymentHistory.reduce((sum, ph) => sum + parseFloat(ph.amountPaid || '0'), 0).toString()
+                          )}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={syncPaymentAmounts}
+                        disabled={syncingPayment}
+                        className="h-8"
+                      >
+                        {syncingPayment ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+                        <span className="mr-2">ڕێکخستن</span>
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                      
+                        <TableHead className="text-right">بەرواری پارەدان</TableHead>
+                        <TableHead className="text-right">بڕی پارەی دراو</TableHead>
+                          <TableHead className="text-right">#</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedInstallment.paymentHistory && selectedInstallment.paymentHistory.length > 0 ? (
+                        selectedInstallment.paymentHistory.map((ph, index) => (
+                          <TableRow key={index}>
+                           
+                            <TableCell className="text-right">{formatDate(ph.paymentDate)}</TableCell>
+                            <TableCell className="text-right font-semibold text-green-600 dark:text-green-400">{formatMoney(ph.amountPaid)}</TableCell>
+                             <TableCell className="text-right">{index + 1}</TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center text-muted-foreground">
+                            هیچ پارەدانێک تۆمار نەکراوە
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {activeReport === "sales" ? (
+        <div className="rounded-xl border border-border/40 shadow-lg overflow-hidden bg-card">
+          <div className="overflow-x-auto">
+            <Table>
+            <TableHeader className="bg-primary/5 border-b border-border/40">
+              <TableRow className="hover:bg-primary/2 transition-colors">
+                <TableHead className="text-right text-primary font-bold">#</TableHead>
+                <TableHead className="text-right text-primary font-bold">بەروار</TableHead>
+                <TableHead className="text-right text-primary font-bold">ناوی کاڵا</TableHead>
+                <TableHead className="text-right text-primary font-bold">پۆل</TableHead>
+                <TableHead className="text-right text-primary font-bold">نرخی فرۆشتن</TableHead>
+                <TableHead className="text-right text-primary font-bold">بڕی فرۆشتن</TableHead>
+                <TableHead className="text-right text-primary font-bold">کۆی فرۆشتن</TableHead>
+                <TableHead className="text-right text-primary font-bold">قازانج</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                    ...چاوەڕوانبە
+                  </TableCell>
+                </TableRow>
+              ) : filteredSales.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground hover:bg-transparent">
+                    هیچ فرۆشتنێک نەدۆزرایەوە.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredSales.map((sale, index) => (
+                  <TableRow
+                    key={sale.id}
+                    className={`transition-all duration-200 border-b border-gray-100 dark:border-gray-800 ${
+                      index % 2 === 0
+                        ? "bg-white dark:bg-slate-950"
+                        : "bg-primary/2 dark:bg-slate-900/30"
+                    } hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors`}
+                  >
+                    <TableCell className="text-xs font-semibold text-foreground">{index + 1}</TableCell>
+                    <TableCell className="text-xs font-semibold text-foreground/80">{formatDate(sale.date)}</TableCell>
+                    <TableCell className="text-xs font-semibold text-foreground">{sale.productName}</TableCell>
+                    <TableCell className="text-xs font-semibold text-foreground/80">
+                      <span className="inline-flex h-5 items-center justify-center whitespace-nowrap rounded-4xl bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                        {sale.category}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-xs font-semibold text-foreground/80">{formatMoney(sale.price)}</TableCell>
+                    <TableCell className="text-xs font-semibold text-foreground/80">{sale.quantity}</TableCell>
+                    <TableCell className="text-xs font-semibold text-foreground/80">{formatMoney(sale.totalPrice)}</TableCell>
+                    <TableCell className="text-xs font-semibold text-foreground/80">
+                      <span className={`inline-flex h-5 items-center justify-center whitespace-nowrap rounded-4xl px-2 py-0.5 text-xs font-semibold ${
+                        sale.profit >= 0
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'
+                      }`}>
+                        {formatMoney(sale.profit)}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+          </div>
+        </div>
+      ) : null}
+
+      {activeReport === "payment-history" ? (
+        <div className="rounded-xl border border-border/40 shadow-lg overflow-hidden bg-card">
+          <div className="overflow-x-auto">
+            <Table>
+            <TableHeader className="bg-primary/5 border-b border-border/40">
+              <TableRow className="hover:bg-primary/2 transition-colors">
+                <TableHead className="text-right text-primary font-bold">#</TableHead>
+                <TableHead className="text-right text-primary font-bold">بەرواری پارەدان</TableHead>
+                <TableHead className="text-right text-primary font-bold">ناوی نەخۆش</TableHead>
+                <TableHead className="text-right text-primary font-bold">ژمارەی قیست</TableHead>
+                <TableHead className="text-right text-primary font-bold">بڕی پارە</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                    ...چاوەڕوانبە
+                  </TableCell>
+                </TableRow>
+              ) : filteredPaymentHistory.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-12 text-muted-foreground hover:bg-transparent">
+                    هیچ داتایەکی پارەدان بەردەست نییە.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredPaymentHistory.map((item, index) => (
+                  <TableRow
+                    key={item.id}
+                    className={`transition-all duration-200 border-b border-gray-100 dark:border-gray-800 ${
+                      index % 2 === 0
+                        ? "bg-white dark:bg-slate-950"
+                        : "bg-primary/2 dark:bg-slate-900/30"
+                    } hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors`}
+                  >
+                    <TableCell className="text-xs font-semibold text-foreground">{index + 1}</TableCell>
+                    <TableCell className="text-xs font-semibold text-foreground/80">{formatDate(item.paymentDate)}</TableCell>
+                    <TableCell className="text-xs font-semibold text-foreground">{item.patientName}</TableCell>
+                    <TableCell className="text-xs font-semibold text-foreground/80">
+                      <span className="inline-flex h-5 items-center justify-center whitespace-nowrap rounded-4xl bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                        {item.installmentNumber ? `قیست ${item.installmentNumber}` : '-'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="inline-flex h-5 items-center justify-center whitespace-nowrap rounded-4xl bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800 dark:bg-green-900/40 dark:text-green-300">
+                        {formatMoney(item.amountPaid)}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+          </div>
+        </div>
+      ) : null}
+      </div>
+    </div>
+  )
+}
+
+export default function ReportsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-[50vh] items-center justify-center text-sm text-muted-foreground" dir="rtl">
+          ...چاوەڕوانبە
+        </div>
+      }
+    >
+      <ReportsPageContent />
+    </Suspense>
+  )
+}

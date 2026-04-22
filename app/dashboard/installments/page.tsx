@@ -1,0 +1,727 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
+import { Loader2, Wallet, Calendar, Trash2, AlertCircle, Plus, DollarSign, RotateCcw } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+
+interface Installment {
+  id: number;
+  patientName: string;
+  totalAmount: string;
+  paidAmount: string;
+  remainingAmount: string;
+  installmentValue: string;
+  nextPaymentDate: string | null;
+  status: 'Paid' | 'Pending' | 'Overdue';
+  createdAt: string;
+}
+
+interface FormData {
+  patientName: string;
+  totalAmount: string;
+  paidAmount: string;
+  installmentValue: string;
+  nextPaymentDate: string;
+}
+
+interface PaymentFormData {
+  amountPaid: string;
+  paymentDate: string;
+}
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'Paid':
+      return 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300';
+    case 'Pending':
+      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300';
+    case 'Overdue':
+      return 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300';
+    default:
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
+  }
+};
+
+const getStatusLabel = (status: string) => {
+  switch (status) {
+    case 'Paid': return 'دراوە';
+    case 'Pending': return 'چاوەڕوانکراوە';
+    case 'Overdue': return 'دواکەوتووە';
+    default: return status;
+  }
+};
+
+const formatNumber = (value: string): string => {
+  const numeric = value.replace(/,/g, '');
+  if (numeric === '') return '';
+  const num = parseFloat(numeric);
+  if (isNaN(num)) return value;
+  return num.toLocaleString('en-US');
+};
+
+const parseFormattedNumber = (value: string): string => {
+  return value.replace(/,/g, '');
+};
+
+export default function InstallmentsPage() {
+  const [installments, setInstallments] = useState<Installment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [openAddDialog, setOpenAddDialog] = useState(false);
+  const [openPaymentDialog, setOpenPaymentDialog] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [selectedInstallment, setSelectedInstallment] = useState<Installment | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [formData, setFormData] = useState<FormData>({
+    patientName: '',
+    totalAmount: '',
+    paidAmount: '0',
+    installmentValue: '',
+    nextPaymentDate: '',
+  });
+  const [paymentFormData, setPaymentFormData] = useState<PaymentFormData>({
+    amountPaid: '',
+    paymentDate: new Date().toISOString().split('T')[0],
+  });
+
+  const fetchInstallments = async () => {
+    try {
+      const response = await fetch('/api/installments');
+      if (!response.ok) {
+        throw new Error('هەڵە لە هێنانی قیستەکان');
+      }
+      const data = await response.json();
+      setInstallments(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'هەڵەیەک ڕویدا');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchInstallments();
+  }, []);
+
+  const handleAddInstallment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+
+    try {
+      const totalAmount = parseFloat(formData.totalAmount);
+      const paidAmount = parseFloat(formData.paidAmount || '0');
+      const remainingAmount = totalAmount - paidAmount;
+      const installmentValue = parseFloat(formData.installmentValue);
+
+      const response = await fetch('/api/installments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientName: formData.patientName,
+          totalAmount,
+          paidAmount,
+          remainingAmount,
+          installmentValue,
+          nextPaymentDate: formData.nextPaymentDate || null,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('وەک نەتوانیت قیست زیادبکە');
+      }
+
+      await fetchInstallments();
+      toast.success('قیست بەسەرکەوتویی زیاد کرا');
+      setOpenAddDialog(false);
+      setFormData({
+        patientName: '',
+        totalAmount: '',
+        paidAmount: '0',
+        installmentValue: '',
+        nextPaymentDate: '',
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'هەڵەیەک ڕویدا');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRecordPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedInstallment) return;
+
+    setSubmitting(true);
+
+    try {
+      const response = await fetch('/api/installments/record-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          installmentId: selectedInstallment.id,
+          amountPaid: paymentFormData.amountPaid,
+          paymentDate: paymentFormData.paymentDate,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('وەک نەتوانیت پارە تۆماربکە');
+      }
+
+      await fetchInstallments();
+      toast.success('پارە بەسەرکەوتویی تۆمار کرا');
+      setOpenPaymentDialog(false);
+      setPaymentFormData({
+        amountPaid: '',
+        paymentDate: new Date().toISOString().split('T')[0],
+      });
+      setSelectedInstallment(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'هەڵەیەک ڕویدا');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteInstallment = async (id: number) => {
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/installments?id=${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('وەک نەتوانیت قیست بسڕە');
+      }
+
+      await fetchInstallments();
+      setDeleteConfirm(null);
+      toast.success('قیست بەسەرکەوتویی سڕایەوە');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'هەڵەیەک ڕویدا');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const openPaymentModal = (installment: Installment) => {
+    setSelectedInstallment(installment);
+    setPaymentFormData({
+      amountPaid: installment.installmentValue,
+      paymentDate: new Date().toISOString().split('T')[0],
+    });
+    setOpenPaymentDialog(true);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    if (name === 'totalAmount' || name === 'paidAmount' || name === 'installmentValue') {
+      const numericValue = value.replace(/[^0-9.]/g, '');
+      setFormData(prev => ({ ...prev, [name]: numericValue }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handlePaymentInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    if (name === 'amountPaid') {
+      const numericValue = value.replace(/[^0-9.]/g, '');
+      setPaymentFormData(prev => ({ ...prev, [name]: numericValue }));
+    } else {
+      setPaymentFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center">
+          <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">تکایە جاوەێکە...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Calculate summary cards
+  const totalDebt = installments.reduce((sum, installment) => {
+    return sum + parseFloat(installment.remainingAmount || '0');
+  }, 0);
+
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const expectedThisMonth = installments.reduce((sum, installment) => {
+    if (installment.nextPaymentDate) {
+      const paymentDate = new Date(installment.nextPaymentDate);
+      if (paymentDate.getMonth() === currentMonth && paymentDate.getFullYear() === currentYear) {
+        return sum + parseFloat(installment.installmentValue || '0');
+      }
+    }
+    return sum;
+  }, 0);
+
+  const filteredInstallments = installments.filter((installment) => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      installment.patientName.toLowerCase().includes(searchLower) ||
+      installment.status.toLowerCase().includes(searchLower)
+    );
+  });
+
+  return (
+    <div dir="rtl" className="space-y-8">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">بەڕێوەبردنی قیستەکان</h1>
+      </div>
+
+      {error && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="border border-blue-500 shadow-lg p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-sm text-blue-600 dark:text-blue-400 truncate">
+                کۆی قەرزەکان لای نەخۆش
+              </p>
+              <p className="mt-2 text-2xl font-bold text-blue-900 dark:text-blue-100">
+                {totalDebt.toLocaleString('en-US')} IQD
+              </p>
+            </div>
+            <Wallet className="h-10 w-10 text-blue-500" />
+          </div>
+        </Card>
+
+        <Card className="border border-green-500 shadow-lg p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-sm text-green-600 dark:text-green-400 truncate">
+                قیستە چاوەڕوانکراوەکانی ئەم مانگە
+              </p>
+              <p className="mt-2 text-2xl font-bold text-green-900 dark:text-green-100">
+                {expectedThisMonth.toLocaleString('en-US')} IQD
+              </p>
+            </div>
+            <Calendar className="h-10 w-10 text-green-500" />
+          </div>
+        </Card>
+      </div>
+
+      {/* Search and Add Button */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex-1 relative">
+          <Input
+            type="text"
+            placeholder="گەڕان بە ناوی نەخۆش یان بارودۆخ"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full rounded-lg border-border/90 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 pr-10"
+          />
+        </div>
+        <Button 
+          onClick={() => setOpenAddDialog(true)}
+          className="bg-primary hover:shadow-lg hover:shadow-primary/30 gap-2 text-white font-semibold px-6 whitespace-nowrap"
+        >
+          پلانێکی نوێ
+          <Plus className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {/* Table */}
+      <div className="rounded-xl border border-border/40 shadow-lg overflow-hidden bg-card">
+        <Table>
+          <TableHeader className="bg-primary/5 border-b border-border/40">
+            <TableRow className="hover:bg-primary/2 transition-colors">
+              <TableHead className="text-right text-primary font-bold">ناوی نەخۆش</TableHead>
+              <TableHead className="text-right text-primary font-bold">کۆی گشتی</TableHead>
+              <TableHead className="text-right text-primary font-bold">بڕی دراو</TableHead>
+              <TableHead className="text-right text-primary font-bold">بڕی ماوە</TableHead>
+              <TableHead className="text-right text-primary font-bold">قیستی مانگانە</TableHead>
+              <TableHead className="text-right text-primary font-bold">بەرواری داهاتوو</TableHead>
+              <TableHead className="text-right text-primary font-bold">بارودۆخ</TableHead>
+              <TableHead className="text-center text-primary font-bold">کرداری</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredInstallments.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-12 text-muted-foreground hover:bg-transparent">
+                  <div className="flex flex-col items-center gap-2">
+                    <Wallet className="w-12 h-12 opacity-30 mx-auto" />
+                    <span className="text-lg">{searchTerm ? 'هیچ قیستێک نەدۆزرایەوە !' : 'هیچ قیست نیە'}</span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredInstallments.map((installment, index) => (
+                <TableRow 
+                  key={installment.id}
+                  className={`transition-all duration-200 border-b border-gray-100 dark:border-gray-800 ${
+                    index % 2 === 0 
+                      ? 'bg-white dark:bg-slate-950' 
+                      : 'bg-primary/2 dark:bg-slate-900/30'
+                  } hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors`}
+                >
+                  <TableCell className="text-xs font-semibold text-foreground">{installment.patientName}</TableCell>
+                  <TableCell className="text-xs font-semibold text-foreground/80">
+                    {parseFloat(installment.totalAmount).toLocaleString('en-US')} IQD
+                  </TableCell>
+                  <TableCell className="text-xs font-semibold text-foreground/80">
+                    {parseFloat(installment.paidAmount).toLocaleString('en-US')} IQD
+                  </TableCell>
+                  <TableCell className="text-xs font-semibold text-foreground/80">
+                    {parseFloat(installment.remainingAmount).toLocaleString('en-US')} IQD
+                  </TableCell>
+                  <TableCell className="text-xs font-semibold text-foreground/80">
+                    {parseFloat(installment.installmentValue).toLocaleString('en-US')} IQD
+                  </TableCell>
+                  <TableCell className="text-xs font-semibold text-foreground/80">
+                    {installment.nextPaymentDate ? (
+                      new Date(installment.nextPaymentDate).toLocaleDateString('ku-IQ', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
+                      })
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
+                  <TableCell className="text-foreground/70">
+                    <span className={`inline-flex h-5 items-center justify-center whitespace-nowrap rounded-4xl px-2 py-0.5 text-xs font-semibold ${getStatusColor(installment.status)}`}>
+                      {getStatusLabel(installment.status)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openPaymentModal(installment)}
+                        className="text-green-600 hover:bg-green-50 hover:text-green-700 dark:hover:bg-green-900"
+                        disabled={installment.status === 'Paid'}
+                        title="تۆمارکردنی قیست"
+                      >
+                        <DollarSign className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDeleteConfirm(installment.id)}
+                        className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900"
+                        title="سڕینەوە"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Add Installment Dialog */}
+      <Dialog open={openAddDialog} onOpenChange={(open) => {
+        setOpenAddDialog(open);
+        if (!open) {
+          setFormData({
+            patientName: '',
+            totalAmount: '',
+            paidAmount: '0',
+            installmentValue: '',
+            nextPaymentDate: '',
+          });
+        }
+      }}>
+        <DialogContent dir="rtl" className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>زیادکردنی پلانی قیست</DialogTitle>
+            <DialogDescription>
+              زانیاریەکانی پلانی قیست نوێەکە بنووسە
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleAddInstallment} className="space-y-4">
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-3">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 sm:col-span-1">ناوی نەخۆش</label>
+                <Input
+                  className="sm:col-span-2"
+                  name="patientName"
+                  value={formData.patientName}
+                  onChange={handleInputChange}
+                  placeholder="ناوی نەخۆش"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-3">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 sm:col-span-1"> کۆی گشتی</label>
+                <div className="sm:col-span-2 relative">
+                  <Input
+                    className="pr-10"
+                    name="totalAmount"
+                    type="text"
+                    step="0.01"
+                    value={formData.totalAmount ? formatNumber(formData.totalAmount) : ''}
+                    onChange={handleInputChange}
+                    placeholder="0.00"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, totalAmount: '' }))}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-3">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 sm:col-span-1">بڕی دراو</label>
+                <div className="sm:col-span-2 relative">
+                  <Input
+                    className="pr-10"
+                    name="paidAmount"
+                    type="text"
+                    step="0.01"
+                    value={formData.paidAmount ? formatNumber(formData.paidAmount) : ''}
+                    onChange={handleInputChange}
+                    placeholder="0"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, paidAmount: '0' }))}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-3">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 sm:col-span-1">قیستی مانگانە</label>
+                <div className="sm:col-span-2 relative">
+                  <Input
+                    className="pr-10"
+                    name="installmentValue"
+                    type="text"
+                    step="0.01"
+                    value={formData.installmentValue ? formatNumber(formData.installmentValue) : ''}
+                    onChange={handleInputChange}
+                    placeholder="0.00"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, installmentValue: '' }))}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-3">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 sm:col-span-1">بەرواری داهاتوو</label>
+                <Input
+                  className="sm:col-span-2"
+                  name="nextPaymentDate"
+                  type="date"
+                  value={formData.nextPaymentDate}
+                  onChange={handleInputChange}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                type="submit"
+                disabled={submitting}
+                className="flex-1 bg-primary hover:shadow-lg hover:shadow-primary/30 text-white font-semibold"
+              >
+                {submitting ? 'چونەژوورەوە...' : 'زیادکردن'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setOpenAddDialog(false)}
+              >
+                داخستن
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Record Payment Dialog */}
+      <Dialog open={openPaymentDialog} onOpenChange={(open) => {
+        setOpenPaymentDialog(open);
+        if (!open) {
+          setSelectedInstallment(null);
+          setPaymentFormData({
+            amountPaid: '',
+            paymentDate: new Date().toISOString().split('T')[0],
+          });
+        }
+      }}>
+        <DialogContent dir="rtl" className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>تۆمارکردنی قیست</DialogTitle>
+            <DialogDescription>
+              {selectedInstallment && `تۆمارکردنی قیست بۆ ${selectedInstallment.patientName}`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleRecordPayment} className="space-y-4">
+            <div className="space-y-3">
+              {selectedInstallment && (
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    بڕی ماوە: <span className="font-bold text-foreground">{parseFloat(selectedInstallment.remainingAmount).toLocaleString('en-US')} IQD</span>
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-3">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 sm:col-span-1">بڕی پارە</label>
+                <div className="sm:col-span-2 relative">
+                  <Input
+                    className="pr-10"
+                    name="amountPaid"
+                    type="text"
+                    step="0.01"
+                    value={paymentFormData.amountPaid ? formatNumber(paymentFormData.amountPaid) : ''}
+                    onChange={handlePaymentInputChange}
+                    placeholder="0.00"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPaymentFormData(prev => ({ ...prev, amountPaid: '' }))}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-3">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 sm:col-span-1">بەرواری پارەدان</label>
+                <Input
+                  className="sm:col-span-2"
+                  name="paymentDate"
+                  type="date"
+                  value={paymentFormData.paymentDate}
+                  onChange={handlePaymentInputChange}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button
+                type="submit"
+                disabled={submitting}
+                className="flex-1 bg-primary hover:shadow-lg hover:shadow-primary/30 text-white font-semibold"
+              >
+                {submitting ? 'چونەژوورەوە...' : 'تۆمارکردن'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setOpenPaymentDialog(false)}
+              >
+                داخستن
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirm !== null} onOpenChange={(open) => {
+        if (!open) setDeleteConfirm(null);
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <div className="flex flex-col items-center text-center space-y-4">
+            <div className="shrink-0">
+              <div className="flex items-center justify-center h-12 w-12 rounded-full bg-destructive/10">
+                <AlertCircle className="h-6 w-6 text-destructive" />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <DialogTitle className="text-destructive text-lg font-bold">سڕینەوەی قیست</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                ئایا دڵنیایت لە سڕینەوەی ئەم قیستە؟ ئەم کردارە ناگەڕێتەوە.
+              </DialogDescription>
+            </div>
+            
+            <div className="w-full p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
+              {deleteConfirm !== null && 
+                installments.find(i => i.id === deleteConfirm)?.patientName && (
+                <p className="font-bold text-destructive text-base">
+                  {installments.find(i => i.id === deleteConfirm)?.patientName}
+                </p>
+              )}
+            </div>
+            
+            <div className="flex gap-3 w-full pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setDeleteConfirm(null)}
+                disabled={deleting}
+                className="flex-1"
+              >
+                داخستن
+              </Button>
+              <Button
+                onClick={() => deleteConfirm && handleDeleteInstallment(deleteConfirm)}
+                disabled={deleting}
+                className="flex-1 bg-destructive hover:shadow-lg hover:shadow-destructive/30 text-white font-semibold"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                    سڕینەوە
+                  </>
+                ) : (
+                  'سڕینەوە'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
