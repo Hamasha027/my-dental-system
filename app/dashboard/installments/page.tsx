@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import {
   Table,
@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { Loader2, Wallet, Calendar, Trash2, AlertCircle, Plus, DollarSign, RotateCcw } from 'lucide-react';
+import { Loader2, Wallet, Calendar, Trash2, AlertCircle, Plus, DollarSign, RotateCcw, Search } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +21,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { Pagination } from '@/components/pagination';
 
 interface Installment {
   id: number;
@@ -92,6 +93,8 @@ export default function InstallmentsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [paginationPage, setPaginationPage] = useState(1);
+  const [paginationPageSize, setPaginationPageSize] = useState(10);
   const [formData, setFormData] = useState<FormData>({
     patientName: '',
     totalAmount: '',
@@ -103,6 +106,34 @@ export default function InstallmentsPage() {
     amountPaid: '',
     paymentDate: new Date().toISOString().split('T')[0],
   });
+
+  // Memoized calculations - must be called before any conditional logic
+  const filteredInstallments = useMemo(() => {
+    const searchLower = searchTerm.toLowerCase();
+    return installments.filter((installment) => {
+      return (
+        installment.patientName.toLowerCase().includes(searchLower) ||
+        installment.status.toLowerCase().includes(searchLower)
+      );
+    });
+  }, [installments, searchTerm]);
+
+  const totalPages = useMemo(() => Math.ceil(filteredInstallments.length / paginationPageSize) || 1, [filteredInstallments.length, paginationPageSize]);
+  const startIndex = useMemo(() => (paginationPage - 1) * paginationPageSize, [paginationPage, paginationPageSize]);
+  const endIndex = useMemo(() => startIndex + paginationPageSize, [startIndex, paginationPageSize]);
+
+  const paginatedInstallments = useMemo(() => {
+    return filteredInstallments.slice(startIndex, endIndex);
+  }, [filteredInstallments, startIndex, endIndex]);
+
+  const handlePageChange = (newPage: number) => {
+    setPaginationPage(newPage);
+  };
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPaginationPageSize(newPageSize);
+    setPaginationPage(1);
+  };
 
   const fetchInstallments = async () => {
     try {
@@ -281,13 +312,7 @@ export default function InstallmentsPage() {
     return sum;
   }, 0);
 
-  const filteredInstallments = installments.filter((installment) => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      installment.patientName.toLowerCase().includes(searchLower) ||
-      installment.status.toLowerCase().includes(searchLower)
-    );
-  });
+  // Pagination handlers
 
   return (
     <div dir="rtl" className="space-y-8">
@@ -303,50 +328,51 @@ export default function InstallmentsPage() {
       )}
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="border border-blue-500 shadow-lg p-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <Card className="border border-blue-500 shadow-lg p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <p className="text-sm text-blue-600 dark:text-blue-400 truncate">
+              <p className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 truncate">
                 کۆی قەرزەکان لای نەخۆش
               </p>
-              <p className="mt-2 text-2xl font-bold text-blue-900 dark:text-blue-100">
+              <p className="mt-1 sm:mt-2 text-xl sm:text-2xl font-bold text-blue-900 dark:text-blue-100">
                 {totalDebt.toLocaleString('en-US')} IQD
               </p>
             </div>
-            <Wallet className="h-10 w-10 text-blue-500" />
+            <Wallet className="h-8 w-8 sm:h-10 sm:w-10 text-blue-500" />
           </div>
         </Card>
 
-        <Card className="border border-green-500 shadow-lg p-6">
+        <Card className="border border-green-500 shadow-lg p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <p className="text-sm text-green-600 dark:text-green-400 truncate">
+              <p className="text-xs sm:text-sm text-green-600 dark:text-green-400 truncate">
                 قیستە چاوەڕوانکراوەکانی ئەم مانگە
               </p>
-              <p className="mt-2 text-2xl font-bold text-green-900 dark:text-green-100">
+              <p className="mt-1 sm:mt-2 text-xl sm:text-2xl font-bold text-green-900 dark:text-green-100">
                 {expectedThisMonth.toLocaleString('en-US')} IQD
               </p>
             </div>
-            <Calendar className="h-10 w-10 text-green-500" />
+            <Calendar className="h-8 w-8 sm:h-10 sm:w-10 text-green-500" />
           </div>
         </Card>
       </div>
 
       {/* Search and Add Button */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-row items-center justify-between gap-3">
         <div className="flex-1 relative">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <Input
             type="text"
             placeholder="گەڕان بە ناوی نەخۆش یان بارودۆخ"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-lg border-border/90 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 pr-10"
+            className="w-full rounded-lg border-border/90 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 pr-10 h-10"
           />
         </div>
         <Button 
           onClick={() => setOpenAddDialog(true)}
-          className="bg-primary hover:shadow-lg hover:shadow-primary/30 gap-2 text-white font-semibold px-6 whitespace-nowrap"
+          className="bg-primary hover:shadow-lg hover:shadow-primary/30 active:scale-95 active:shadow-inner gap-2 text-white font-semibold px-4 py-2 whitespace-nowrap transition-all duration-150"
         >
           پلانێکی نوێ
           <Plus className="w-4 h-4" />
@@ -369,7 +395,7 @@ export default function InstallmentsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredInstallments.length === 0 ? (
+            {paginatedInstallments.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-12 text-muted-foreground hover:bg-transparent">
                   <div className="flex flex-col items-center gap-2">
@@ -379,7 +405,7 @@ export default function InstallmentsPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredInstallments.map((installment, index) => (
+              paginatedInstallments.map((installment, index) => (
                 <TableRow 
                   key={installment.id}
                   className={`transition-all duration-200 border-b border-gray-100 dark:border-gray-800 ${
@@ -445,6 +471,19 @@ export default function InstallmentsPage() {
             )}
           </TableBody>
         </Table>
+      </div>
+
+      {/* Pagination */}
+      <div className="border-t border-border/40 bg-primary/2">
+        <Pagination
+          currentPage={paginationPage}
+          totalPages={totalPages}
+          pageSize={paginationPageSize}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+          isLoading={loading}
+          pageSizeOptions={[5, 10, 20, 50]}
+        />
       </div>
 
       {/* Add Installment Dialog */}

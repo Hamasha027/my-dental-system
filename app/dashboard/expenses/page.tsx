@@ -30,6 +30,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { AlertCircle, Loader2, Pencil, Plus, Search, Trash2, Wallet } from 'lucide-react';
+import { usePagination } from '@/hooks/usePagination';
+import { Pagination } from '@/components/pagination';
 import {
   expenseCategories,
   paymentMethods,
@@ -193,6 +195,8 @@ export default function ExpensesPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [paginationPage, setPaginationPage] = useState(1);
+  const [paginationPageSize, setPaginationPageSize] = useState(10);
 
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -210,6 +214,29 @@ export default function ExpensesPage() {
 
   const [addForm, setAddForm] = useState<ExpenseFormData>(defaultForm);
   const [editForm, setEditForm] = useState<ExpenseFormData>(defaultForm);
+
+  // Memoized calculations - must be called before any conditional logic
+  const totalPages = useMemo(() => Math.ceil(expenses.length / paginationPageSize) || 1, [expenses.length, paginationPageSize]);
+  const startIndex = useMemo(() => (paginationPage - 1) * paginationPageSize, [paginationPage, paginationPageSize]);
+  const endIndex = useMemo(() => startIndex + paginationPageSize, [startIndex, paginationPageSize]);
+
+  const paginatedExpenses = useMemo(() => {
+    return expenses.slice(startIndex, endIndex);
+  }, [expenses, startIndex, endIndex]);
+
+  const monthlyTotal = useMemo(
+    () => expenses.reduce((sum, item) => sum + Number(item.amount || 0), 0),
+    [expenses]
+  );
+
+  const handlePageChange = (newPage: number) => {
+    setPaginationPage(newPage);
+  };
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPaginationPageSize(newPageSize);
+    setPaginationPage(1);
+  };
 
   const fetchExpenses = async (search = '') => {
     try {
@@ -236,11 +263,6 @@ export default function ExpensesPage() {
   useEffect(() => {
     fetchExpenses(searchTerm);
   }, [searchTerm]);
-
-  const monthlyTotal = useMemo(
-    () => expenses.reduce((sum, item) => sum + Number(item.amount || 0), 0),
-    [expenses]
-  );
 
   const formatAmount = (amount: string | number) => currencyFormatter.format(Number(amount || 0));
 
@@ -595,36 +617,36 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      <Card className="border border-border/60 p-6 shadow-sm">
+      <Card className="border border-border/60 p-4 sm:p-6 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">کۆی خەرجییەکانی ئەم مانگە</h2>
-            <p className="text-sm text-muted-foreground">{getMonthLabel()}</p>
+          <div className="flex-1">
+            <h2 className="text-base sm:text-lg font-semibold">کۆی خەرجییەکانی ئەم مانگە</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground">{getMonthLabel()}</p>
           </div>
           <div className="flex items-center gap-2 rounded-lg bg-primary/10 px-4 py-2 text-primary">
-            <Wallet className="h-5 w-5" />
-            <span className="text-xl font-bold">{formatAmount(monthlyTotal)}</span>
+            <Wallet className="h-5 w-5 sm:h-6 sm:w-6" />
+            <span className="text-lg sm:text-xl font-bold">{formatAmount(monthlyTotal)}</span>
           </div>
         </div>
       </Card>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-md">
+      <div className="flex flex-row items-center justify-between gap-3">
+        <div className="flex-1 relative">
           <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="گەڕان بە ناونیشانی خەرجی"
-            className="pr-10"
+            className="pr-10 h-10"
           />
         </div>
 
         <Button
           onClick={() => setAddOpen(true)}
-          className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+          className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 active:scale-95 active:shadow-inner px-4 py-2 whitespace-nowrap transition-all duration-150"
         >
           <Plus className="h-4 w-4" />
-          زیادکردنی خەرجی نوێ
+          خەرجی
         </Button>
       </div>
 
@@ -650,7 +672,7 @@ export default function ExpensesPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                expenses.map((expense, index) => (
+                paginatedExpenses.map((expense, index) => (
                   <TableRow
                     key={expense.id}
                     className={`transition-all duration-200 border-b border-gray-100 dark:border-gray-800 ${
@@ -708,6 +730,19 @@ export default function ExpensesPage() {
             </TableBody>
           </Table>
         </div>
+      </div>
+
+      {/* Pagination */}
+      <div className="border-t border-border/40 bg-primary/2">
+        <Pagination
+          currentPage={paginationPage}
+          totalPages={totalPages}
+          pageSize={paginationPageSize}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+          isLoading={loading}
+          pageSizeOptions={[5, 10, 20, 50]}
+        />
       </div>
 
       <Dialog open={addOpen} onOpenChange={setAddOpen}>

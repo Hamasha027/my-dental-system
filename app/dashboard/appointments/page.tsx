@@ -1,7 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -10,16 +13,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
-import { Loader2, User, Trash2, AlertCircle, Search, CheckCircle2, XCircle, Plus, Pencil } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -28,6 +27,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Loader2, Plus, Search, Trash2, Pencil, User, Calendar, TrendingUp, DollarSign, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { usePagination } from '@/hooks/usePagination';
+import { Pagination } from '@/components/pagination';
 
 interface Appointment {
   id: number;
@@ -111,6 +113,53 @@ export default function AppointmentsPage() {
     appointmentDate: '',
     money: '',
   });
+
+  const [paginationPage, setPaginationPage] = useState(1);
+  const [paginationPageSize, setPaginationPageSize] = useState(10);
+
+  // Memoized calculations - must be called before any conditional logic
+  const filteredAppointments = useMemo(() => {
+    const searchLower = searchTerm.toLowerCase();
+    return appointments.filter((appointment) => {
+      return (
+        appointment.name.toLowerCase().includes(searchLower) ||
+        appointment.phone.toLowerCase().includes(searchLower) ||
+        appointment.gender.toLowerCase().includes(searchLower) ||
+        appointment.treatmentType.toLowerCase().includes(searchLower)
+      );
+    });
+  }, [appointments, searchTerm]);
+
+  const totalPages = useMemo(() => Math.ceil(filteredAppointments.length / paginationPageSize) || 1, [filteredAppointments.length, paginationPageSize]);
+  const startIndex = useMemo(() => (paginationPage - 1) * paginationPageSize, [paginationPage, paginationPageSize]);
+  const endIndex = useMemo(() => startIndex + paginationPageSize, [startIndex, paginationPageSize]);
+
+  const paginatedAppointments = useMemo(() => {
+    return filteredAppointments.slice(startIndex, endIndex);
+  }, [filteredAppointments, startIndex, endIndex]);
+
+  const treatmentStats = useMemo(() => {
+    return appointments.reduce((acc, appointment) => {
+      const existing = acc.find(item => item.treatmentType === appointment.treatmentType);
+      if (existing) {
+        existing.count += 1;
+        existing.totalMoney += parseFloat(String(appointment.money || 0));
+      } else {
+        acc.push({ 
+          treatmentType: appointment.treatmentType, 
+          count: 1,
+          totalMoney: parseFloat(String(appointment.money || 0))
+        });
+      }
+      return acc;
+    }, [] as Array<{ treatmentType: string; count: number; totalMoney: number }>);
+  }, [appointments]);
+
+  const totalMoney = useMemo(() => {
+    return appointments.reduce((sum, appointment) => {
+      return sum + parseFloat(String(appointment.money || 0));
+    }, 0);
+  }, [appointments]);
 
   const fetchAppointments = async () => {
     try {
@@ -272,39 +321,15 @@ export default function AppointmentsPage() {
     );
   }
 
-  // Calculate treatment type statistics
-  const treatmentStats = appointments.reduce((acc, appointment) => {
-    const existing = acc.find(item => item.treatmentType === appointment.treatmentType);
-    if (existing) {
-      existing.count += 1;
-      existing.totalMoney += parseFloat(String(appointment.money || 0));
-    } else {
-      acc.push({ 
-        treatmentType: appointment.treatmentType, 
-        count: 1,
-        totalMoney: parseFloat(String(appointment.money || 0))
-      });
-    }
-    return acc;
-  }, [] as Array<{ treatmentType: string; count: number; totalMoney: number }>);
+  // Pagination handlers
+  const handlePageChange = (newPage: number) => {
+    setPaginationPage(newPage);
+  };
 
-  // Calculate total money from all appointments
-  const totalMoney = appointments.reduce((sum, appointment) => {
-    return sum + parseFloat(String(appointment.money || 0));
-  }, 0);
-
-  // Filter appointments based on search term
-  const filteredAppointments = appointments.filter((appointment) => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      appointment.name.toLowerCase().includes(searchLower) ||
-      appointment.phone.toLowerCase().includes(searchLower) ||
-      appointment.gender.toLowerCase().includes(searchLower) ||
-      appointment.age.toString().includes(searchLower) ||
-      appointment.treatmentType.toLowerCase().includes(searchLower) ||
-      appointment.appointmentDate.includes(searchLower)
-    );
-  });
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPaginationPageSize(newPageSize);
+    setPaginationPage(1);
+  };
 
   return (
     <div className="space-y-8">
@@ -319,19 +344,19 @@ export default function AppointmentsPage() {
 
       {/* Treatment Statistics Summary - Card Grid */}
       {(treatmentStats.length > 0 || totalMoney > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {/* Total Money Card */}
-          <Card className="border-1 border-green-500 shadow-lg p-6">
+          <Card className="border-1 border-green-500 shadow-lg p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <p className="text-sm text-green-600 dark:text-green-400 truncate">
+                <p className="text-xs sm:text-sm text-green-600 dark:text-green-400 truncate">
                   داهاتی ئەمڕۆ
                 </p>
-                <p className="mt-2 text-2xl font-bold text-green-900 dark:text-green-100">
+                <p className="mt-1 sm:mt-2 text-xl sm:text-2xl font-bold text-green-900 dark:text-green-100">
                   {totalMoney.toLocaleString('en-US')} هەزار
                 </p>
               </div>
-              <User className="h-10 w-10 text-green-500" />
+              <User className="h-8 w-8 sm:h-10 sm:w-10 text-green-500" />
             </div>
           </Card>
 
@@ -339,27 +364,27 @@ export default function AppointmentsPage() {
           {treatmentStats.map((stat) => (
             <Card
               key={stat.treatmentType}
-              className={`border-1 shadow-lg p-6 ${getTreatmentColor(stat.treatmentType).border}`}
+              className={`border-1 shadow-lg p-4 sm:p-6 ${getTreatmentColor(stat.treatmentType).border}`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <p className={`text-sm truncate ${getTreatmentColor(stat.treatmentType).title}`}>
+                  <p className={`text-xs sm:text-sm truncate ${getTreatmentColor(stat.treatmentType).title}`}>
                     {stat.treatmentType}
                   </p>
-                  <p className={`mt-2 text-2xl font-bold ${getTreatmentColor(stat.treatmentType).value}`}>
+                  <p className={`mt-1 sm:mt-2 text-xl sm:text-2xl font-bold ${getTreatmentColor(stat.treatmentType).value}`}>
                     {stat.count}
                   </p>
-                  <p className={`mt-1 text-sm ${getTreatmentColor(stat.treatmentType).title}`}>
+                  <p className={`mt-1 text-xs sm:text-sm ${getTreatmentColor(stat.treatmentType).title}`}>
                     {stat.totalMoney.toLocaleString('en-US')} هەزار
                   </p>
                 </div>
-                <User className={`h-10 w-10 ${getTreatmentColor(stat.treatmentType).icon}`} />
+                <User className={`h-8 w-8 sm:h-10 sm:w-10 ${getTreatmentColor(stat.treatmentType).icon}`} />
               </div>
             </Card>
           ))}
         </div>
       )}
-  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+  <div className="flex flex-row items-center justify-between gap-3">
         <div className="flex-1 relative">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <Input
@@ -367,12 +392,12 @@ export default function AppointmentsPage() {
             placeholder="گەڕان"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-lg border-border/90 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 pr-10"
+            className="w-full rounded-lg border-border/90 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 pr-10 h-10"
           />
         </div>
         <Button 
           onClick={() => setOpenDialog(true)}
-          className="bg-primary hover:shadow-lg hover:shadow-primary/30 gap-2 text-white font-semibold px-6 whitespace-nowrap"
+          className="bg-primary hover:shadow-lg hover:shadow-primary/30 gap-2 text-white font-semibold px-4 py-2 whitespace-nowrap"
         >
         
           زیادکردنی نەخۆش
@@ -396,7 +421,7 @@ export default function AppointmentsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAppointments.length === 0 ? (
+            {paginatedAppointments.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="text-center py-12 text-muted-foreground hover:bg-transparent">
                   <div className="flex flex-col items-center gap-2">
@@ -406,7 +431,7 @@ export default function AppointmentsPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredAppointments.map((appointment, index) => (
+              paginatedAppointments.map((appointment, index) => (
                 <TableRow 
                   key={appointment.id}
                   className={`transition-all duration-200 border-b border-gray-100 dark:border-gray-800 ${
@@ -470,6 +495,19 @@ export default function AppointmentsPage() {
         </Table>
       </div>
 
+      {/* Pagination */}
+      <div className="border-t border-border/40 bg-primary/2">
+        <Pagination
+          currentPage={paginationPage}
+          totalPages={totalPages}
+          pageSize={paginationPageSize}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+          isLoading={loading}
+          pageSizeOptions={[5, 10, 20, 50]}
+        />
+      </div>
+
       {/* Add Patient Dialog */}
       <Dialog open={openDialog} onOpenChange={(open) => {
         setOpenDialog(open);
@@ -506,14 +544,6 @@ export default function AppointmentsPage() {
                   placeholder="ناوی نەخۆش"
                   required
                 />
-              <Input
-                className="sm:col-span-2"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                placeholder="ناوی نەخۆش"
-                required
-              />
               </div>
 
               <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-3">
@@ -591,10 +621,15 @@ export default function AppointmentsPage() {
               <Input
                 className="sm:col-span-2"
                 name="money"
-                type="number"
-                step="0.01"
-                value={formData.money}
-                onChange={handleInputChange}
+                type="text"
+                inputMode="numeric"
+                value={formData.money ? Number(formData.money).toLocaleString('en-US') : ''}
+                onChange={(e) => {
+                  const rawValue = e.target.value.replace(/,/g, '');
+                  if (rawValue === '' || /^\d*\.?\d*$/.test(rawValue)) {
+                    handleInputChange({ target: { name: 'money', value: rawValue } } as React.ChangeEvent<HTMLInputElement>);
+                  }
+                }}
                 placeholder="0"
               />
               </div>

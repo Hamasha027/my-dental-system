@@ -29,7 +29,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Pencil, Plus, Search, Trash2, TrendingUp, Calendar, DollarSign, Package } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, Plus, Trash2, Pencil, TrendingUp, Package } from 'lucide-react';
+import { usePagination } from '@/hooks/usePagination';
+import { Pagination } from '@/components/pagination';
 import { type Sale, type ProductCategory, defaultCategories } from '@/lib/types/product';
 
 interface SaleFormData {
@@ -97,6 +99,8 @@ export default function SellerPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [paginationPage, setPaginationPage] = useState(1);
+  const [paginationPageSize, setPaginationPageSize] = useState(10);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
@@ -113,6 +117,24 @@ export default function SellerPage() {
     date: getToday(),
     notes: '',
   });
+
+  // Memoized calculations - must be called before any conditional logic
+  const totalPages = useMemo(() => Math.ceil(sales.length / paginationPageSize) || 1, [sales.length, paginationPageSize]);
+  const startIndex = useMemo(() => (paginationPage - 1) * paginationPageSize, [paginationPage, paginationPageSize]);
+  const endIndex = useMemo(() => startIndex + paginationPageSize, [startIndex, paginationPageSize]);
+
+  const paginatedSales = useMemo(() => {
+    return sales.slice(startIndex, endIndex);
+  }, [sales, startIndex, endIndex]);
+
+  const handlePageChange = (newPage: number) => {
+    setPaginationPage(newPage);
+  };
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPaginationPageSize(newPageSize);
+    setPaginationPage(1);
+  };
 
   // Load from API
   const fetchSales = async (search = '') => {
@@ -177,7 +199,7 @@ export default function SellerPage() {
       setFormData({
         productName: sale.productName,
         category: sale.category,
-        price: formatNumberWithCommas(sale.price.toString()),
+        price: sale.price.toString(),
         quantity: sale.quantity.toString(),
         date: sale.date,
         notes: sale.notes || '',
@@ -317,48 +339,48 @@ export default function SellerPage() {
   return (
     <div className="space-y-6" dir="rtl">
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2">
-             <Card className="border border-green-500 shadow-lg p-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+             <Card className="border border-green-500 shadow-lg p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-green-600 dark:text-green-400">فرۆشتنی ئەمرۆ</p>
-              <p className="mt-1 text-lg font-bold text-green-900 dark:text-green-100">
+            <div className="flex-1">
+              <p className="text-xs sm:text-sm text-green-600 dark:text-green-400">فرۆشتنی ئەمرۆ</p>
+              <p className="mt-1 sm:mt-2 text-xl sm:text-2xl font-bold text-green-900 dark:text-green-100">
                 {formatMoney(todayProfit)}
               </p>
             </div>
-            <TrendingUp className="h-8 w-8 text-green-500" />
+            <TrendingUp className="h-8 w-8 sm:h-10 sm:w-10 text-green-500" />
           </div>
         </Card>
-        <Card className="border border-primary shadow-lg p-4">
+        <Card className="border border-primary shadow-lg p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-primary">کۆی فرۆشتن</p>
-              <p className="mt-1 text-lg font-bold text-primary">
+            <div className="flex-1">
+              <p className="text-xs sm:text-sm text-primary">کۆی فرۆشتن</p>
+              <p className="mt-1 sm:mt-2 text-xl sm:text-2xl font-bold text-primary">
                 {formatMoney(todayProfit)}
               </p>
             </div>
-            <Package className="h-8 w-8 text-primary" />
+            <Package className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
           </div>
         </Card>
 
-   
+
       </div>
 
       {/* Search and Add Button */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-md">
+      <div className="flex flex-row items-center justify-between gap-3">
+        <div className="flex-1 relative">
           <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="گەڕان بە ناوی کاڵا یان کەتیگۆری"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pr-10 text-sm"
+            className="pr-10 text-sm h-10"
           />
         </div>
 
         <Button
           onClick={() => handleOpenForm()}
-          className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+          className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 whitespace-nowrap"
         >
           <Plus className="h-4 w-4" />
           زیادکردنی فرۆشتن
@@ -387,7 +409,7 @@ export default function SellerPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                sales.map((sale, index) => (
+                paginatedSales.map((sale, index) => (
                   <TableRow
                     key={sale.id}
                     className={`transition-all duration-200 border-b border-gray-100 dark:border-gray-800 ${
@@ -437,6 +459,19 @@ export default function SellerPage() {
             </TableBody>
           </Table>
         </div>
+      </div>
+
+      {/* Pagination */}
+      <div className="border-t border-border/40 bg-primary/2">
+        <Pagination
+          currentPage={paginationPage}
+          totalPages={totalPages}
+          pageSize={paginationPageSize}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
+          isLoading={loading}
+          pageSizeOptions={[5, 10, 20, 50]}
+        />
       </div>
 
       {/* Form Dialog */}
@@ -510,8 +545,12 @@ export default function SellerPage() {
                 <label className="text-sm font-medium">نرخی فرۆشتن</label>
                 <Input
                   type="text"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: formatNumberWithCommas(e.target.value) })}
+                  inputMode="numeric"
+                  value={formData.price.replace(/,/g, '')}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^0-9.]/g, '');
+                    setFormData({ ...formData, price: value });
+                  }}
                   placeholder="0"
                 />
               </div>

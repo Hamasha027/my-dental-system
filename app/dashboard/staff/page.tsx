@@ -112,7 +112,7 @@ function StaffPageContent() {
   const deleteStaffMutation = useDeleteStaff();
   const updateStaffMutation = useUpdateStaff();
 
-  // Pagination setup
+  // Filtering and Pagination
   const filteredStaff = useMemo(() => {
     return staff.filter(
       (s) =>
@@ -327,72 +327,72 @@ function StaffPageContent() {
   }
 
   return (
-    <div className="space-y-6 p-6" dir="rtl">
+    <div className="space-y-6 p-1.5" dir="rtl">
       {/* Search Bar */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-row items-center justify-between gap-2 ">
         {/* Search Section */}
-        <div className="flex-1 relative">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <div className="flex-1 relative min-w-0">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none shrink-0" />
           <Input
             placeholder="گەڕان"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-lg border-border/90 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 pr-10"
+            className="w-full rounded-lg border-border/90 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 pr-10 h-10"
           />
         </div>
 
-        <div className="flex gap-2 whitespace-nowrap">
+        <div className="flex gap-1 flex-shrink-0">
           <Button
             onClick={() => setOpenAddAdvanceDialog(true)}
-            className="bg-primary hover:shadow-lg hover:shadow-primary/30 gap-2 text-white font-bold px-4"
+            className="bg-primary hover:shadow-lg hover:shadow-primary/30 active:scale-95 active:shadow-inner gap-1 text-white font-bold px-2 sm:px-3 py-2 text-xs sm:text-sm transition-all duration-150"
           >
-            وەرگرتنی پێشەکی
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span>پێشەکی</span>
           </Button>
           <Button
             onClick={() => setOpenAddStaffDialog(true)}
-            className="bg-primary hover:shadow-lg hover:shadow-primary/30 gap-2 text-white font-semibold px-4"
+            className="bg-primary hover:shadow-lg hover:shadow-primary/30 active:scale-95 active:shadow-inner gap-1 text-white font-semibold px-2 sm:px-3 py-2 text-xs sm:text-sm transition-all duration-150"
           >
-            زیادکردنی کارمەند نوێ
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span>کارمەند</span>
           </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-2 md:grid-cols-3">
-        <Card className="border border-primary shadow-lg p-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <Card className="border border-primary shadow-lg p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-primary">ژمارەی کارمەندەکان</p>
-              <p className="mt-2 text-2xl font-bold text-primary">
+            <div className="flex-1">
+              <p className="text-xs sm:text-sm text-primary">ژمارەی کارمەندەکان</p>
+              <p className="mt-1 sm:mt-2 text-xl sm:text-2xl font-bold text-primary">
                 {staff.length}
               </p>
             </div>
-            <User className="h-10 w-10 text-primary" />
+            <User className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
           </div>
         </Card>
 
         
-        <Card className="border border-red-500 shadow-lg p-6">
+        <Card className="border border-red-500 shadow-lg p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-red-600 dark:text-red-400">کۆی مووچەی بنەڕەتی</p>
-              <p className="mt-2 text-2xl font-bold text-red-900 dark:text-red-100">
+            <div className="flex-1">
+              <p className="text-xs sm:text-sm text-red-600 dark:text-red-400">کۆی مووچەی بنەڕەتی</p>
+              <p className="mt-1 sm:mt-2 text-xl sm:text-2xl font-bold text-red-900 dark:text-red-100">
                 {formatCurrency(
                   staff.reduce((sum, s) => sum + parseFloat(s.basicSalary || '0'), 0)
                 )}
               </p>
             </div>
-           <h1 className='text-2xl font-bold text-amber-900 dark:text-amber-100'>IQD</h1>
+           <h1 className='text-xl sm:text-2xl font-bold text-amber-900 dark:text-amber-100'>IQD</h1>
           </div>
         </Card>
 
-        <Card className="border border-green-500 shadow-lg p-6">
+        <Card className="border border-green-500 shadow-lg p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-green-600 dark:text-green-400"> بڕی موچەی ماوە</p>
-              <p className="mt-2 text-2xl font-bold text-green-900 dark:text-green-100">
+            <div className="flex-1">
+              <p className="text-xs sm:text-sm text-green-600 dark:text-green-400"> بڕی موچەی ماوە</p>
+              <p className="mt-1 sm:mt-2 text-xl sm:text-2xl font-bold text-green-900 dark:text-green-100">
                 {formatCurrency(
                   staff.reduce(
                     (sum, s) => sum + (parseFloat(s.basicSalary || '0') - calculateStaffTotals(s.id)),
@@ -401,7 +401,7 @@ function StaffPageContent() {
                 )}
               </p>
             </div>
-            <h1 className='text-2xl font-bold text-green-900 dark:text-green-100'>IQD</h1>
+            <h1 className='text-xl sm:text-2xl font-bold text-green-900 dark:text-green-100'>IQD</h1>
           </div>
         </Card>
 
@@ -409,6 +409,7 @@ function StaffPageContent() {
 
       {/* Staff Table */}
       <div className="rounded-xl border border-border/40 shadow-lg overflow-hidden bg-card">
+        <div className="overflow-x-auto">
         <Table>
             <TableHeader className="bg-primary/5 border-b border-border/40">
               <TableRow className="hover:bg-primary/2 transition-colors">
@@ -544,6 +545,7 @@ function StaffPageContent() {
               )}
             </TableBody>
           </Table>
+        </div>
 
         {/* Pagination Controls */}
         <div className="border-t border-border/40 bg-primary/2">
@@ -607,7 +609,7 @@ function StaffPageContent() {
           }
         }}
       >
-        <DialogContent className="max-w-md" dir="rtl">
+        <DialogContent className="max-w-[95vw] sm:max-w-md" dir="rtl">
           <DialogHeader>
             <DialogTitle className="text-center">دڵنیابوونەوە</DialogTitle>
             <DialogDescription className="text-center">
@@ -642,7 +644,7 @@ function StaffPageContent() {
 
       {/* Add Staff Dialog */}
       <Dialog open={openAddStaffDialog} onOpenChange={setOpenAddStaffDialog}>
-        <DialogContent className="max-w-md" dir="rtl">
+        <DialogContent className="max-w-[95vw] sm:max-w-md" dir="rtl">
           <DialogHeader>
             <DialogTitle className='text-center'>زیادکردنی کارمەند نوێ</DialogTitle>
           
@@ -702,9 +704,9 @@ function StaffPageContent() {
                   type="text"
                   inputMode="numeric"
                   placeholder="مووچەی بنەڕەتی"
-                  value={formatInputValue(staffFormData.basicSalary)}
+                  value={staffFormData.basicSalary.replace(/,/g, '')}
                   onChange={(e) => {
-                    const numericValue = e.target.value.replace(/,/g, '');
+                    const numericValue = e.target.value.replace(/[^0-9.]/g, '');
                     setStaffFormData({ ...staffFormData, basicSalary: numericValue })
                   }}
                 />
@@ -783,7 +785,7 @@ function StaffPageContent() {
 
       {/* Edit Staff Dialog */}
       <Dialog open={openEditStaffDialog} onOpenChange={setOpenEditStaffDialog}>
-        <DialogContent className="max-w-md" dir="rtl">
+        <DialogContent className="max-w-[95vw] sm:max-w-md" dir="rtl">
           <DialogHeader>
             <DialogTitle className='text-center'>دەستکاریکردنی زانیاری کارمەند</DialogTitle>
           </DialogHeader>
@@ -837,9 +839,9 @@ function StaffPageContent() {
                 type="text"
                 inputMode="numeric"
                 placeholder="مووچەی بنەڕەتی"
-                value={formatInputValue(editFormData.basicSalary)}
+                value={editFormData.basicSalary.replace(/,/g, '')}
                 onChange={(e) => {
-                  const numericValue = e.target.value.replace(/,/g, '');
+                  const numericValue = e.target.value.replace(/[^0-9.]/g, '');
                   setEditFormData({ ...editFormData, basicSalary: numericValue })
                 }}
               />
@@ -913,7 +915,7 @@ function StaffPageContent() {
 
       {/* Add Advance Dialog */}
       <Dialog open={openAddAdvanceDialog} onOpenChange={setOpenAddAdvanceDialog}>
-        <DialogContent className="max-w-md" dir="rtl">
+        <DialogContent className="max-w-[95vw] sm:max-w-md" dir="rtl">
           <DialogHeader>
             <DialogTitle className='text-center'> وەرگرتنی پێشەکی </DialogTitle>
            
@@ -951,9 +953,9 @@ function StaffPageContent() {
                 type="text"
                 inputMode="numeric"
                 placeholder="بڕی پارە"
-                value={formatInputValue(advanceFormData.amount)}
+                value={advanceFormData.amount.replace(/,/g, '')}
                 onChange={(e) => {
-                  const numericValue = e.target.value.replace(/,/g, '');
+                  const numericValue = e.target.value.replace(/[^0-9.]/g, '');
                   setAdvanceFormData({ ...advanceFormData, amount: numericValue })
                 }}
                 required
