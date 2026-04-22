@@ -50,6 +50,13 @@
       "when": 1776722766199,
       "tag": "0006_legal_deathbird",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1776884056707,
+      "tag": "0007_slim_centennial",
+      "breakpoints": true
     }
   ]
 }

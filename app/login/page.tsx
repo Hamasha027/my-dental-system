@@ -126,7 +126,7 @@ export default function Login() {
                         </Button>
 
                         <p className='text-center text-sm text-gray-600 mt-6'>
-                         هەژمارت نیە؟ <a href='#' className='text-primary hover:text-primary/80 font-semibold transition-colors duration-300'>چونەژوورەوە لەڕێگای کۆدی تایبەتەوە</a>
+                         هەژمارت نیە؟ <a href='/login-otp' className='text-primary hover:text-primary/80 font-semibold transition-colors duration-300'>چونەژوورەوە لەڕێگای کۆدی تایبەتەوە</a>
                         </p>
                     </form>
                 </div>

@@ -10,8 +10,9 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
 
-    // Clear auth cookies
+    // Clear auth cookies (both email/password and OTP login)
     response.cookies.delete('sessionId');
+    response.cookies.delete('session');
     response.cookies.delete('auth_token');
     response.cookies.delete('user_id');
 

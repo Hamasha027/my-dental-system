@@ -3,11 +3,12 @@ import { NextRequest, NextResponse } from 'next/server'
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const sessionCookie = request.cookies.get('sessionId')?.value
+  const otpSessionCookie = request.cookies.get('session')?.value
 
-  // If user is logged in (has sessionId cookie)
-  if (sessionCookie) {
-    // Redirect /login to /dashboard
-    if (pathname === '/login') {
+  // If user is logged in (has sessionId or session cookie)
+  if (sessionCookie || otpSessionCookie) {
+    // Redirect /login and /login-otp to /dashboard
+    if (pathname === '/login' || pathname === '/login-otp') {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
   } else {
@@ -21,5 +22,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/login', '/dashboard/:path*'],
+  matcher: ['/login', '/login-otp', '/dashboard/:path*'],
 }

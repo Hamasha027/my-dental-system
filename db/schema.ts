@@ -133,3 +133,9 @@ export const payrollHistoryTable = pgTable('payroll_history', {
   finalizedAt: timestamp('finalized_at').defaultNow(),
   createdAt: timestamp('created_at').defaultNow(),
 });
+
+export const otpcodeTable = pgTable('otpcode', {
+  id: serial('id').primaryKey(),
+  code: varchar('code', { length: 10 }).notNull().unique(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
