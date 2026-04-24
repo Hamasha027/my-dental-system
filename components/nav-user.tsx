@@ -80,19 +80,20 @@ export function NavUser({
           </div>
 
           <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-            <DialogContent dir="rtl" className="max-w-md">
+            <DialogContent dir="rtl" className="max-w-[90%] sm:max-w-md mx-auto rounded-2xl">
               <DialogHeader>
-                <DialogTitle className="text-center">دڵنیابوونەوەی چونەدەرەوە</DialogTitle>
-                <DialogDescription className="text-center">
+                <DialogTitle className="text-center text-lg sm:text-xl">دڵنیابوونەوەی چونەدەرەوە</DialogTitle>
+                <DialogDescription className="text-center text-sm sm:text-base">
                   ئایا دڵنیایت دەتەوێت لە سیستەمەکە بچیتە دەرەوە؟
                 </DialogDescription>
               </DialogHeader>
-              <DialogFooter className="flex-row-reverse gap-2 sm:justify-center">
+              <DialogFooter className="flex-row-reverse gap-2 sm:gap-3 sm:justify-center">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setIsConfirmOpen(false)}
                   disabled={isLoggingOut}
+                  className="flex-1 sm:flex-none"
                 >
                   پاشگەزبوونەوە
                 </Button>
@@ -101,6 +102,7 @@ export function NavUser({
                   variant="destructive"
                   onClick={handleLogout}
                   disabled={isLoggingOut}
+                  className="flex-1 sm:flex-none"
                 >
                   {isLoggingOut ? 'چاوەڕوانبە...' : 'بەڵێ ، دەچمە دەرەوە'}
                 </Button>

@@ -583,9 +583,9 @@ export default function SellerPage() {
                 <Input
                   type="text"
                   inputMode="numeric"
-                  value={formData.price.replace(/,/g, '')}
+                  value={formatNumberWithCommas(formData.price)}
                   onChange={(e) => {
-                    const value = e.target.value.replace(/[^0-9.]/g, '');
+                    const value = e.target.value.replace(/[^0-9]/g, '');
                     setFormData({ ...formData, price: value });
                   }}
                   placeholder="0"
