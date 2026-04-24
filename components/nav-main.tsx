@@ -55,7 +55,7 @@ export function NavMain({
                     onClick={() => toggleDropdown(item.title)}
                     className="relative mx-1 rounded-xl transition-all duration-300 hover:bg-gradient-to-r hover:from-[#3dc1d3]/10 hover:to-transparent hover:text-[#3dc1d3] hover:shadow-md hover:shadow-[#3dc1d3]/10 active:bg-gradient-to-r active:from-[#3dc1d3]/20 active:to-transparent active:text-[#3dc1d3] data-[active=true]:bg-gradient-to-r data-[active=true]:from-[#3dc1d3]/15 data-[active=true]:to-transparent data-[active=true]:text-[#3dc1d3] data-[active=true]:font-semibold data-[active=true]:shadow-md data-[active=true]:shadow-[#3dc1d3]/15"
                   >
-                    <span className="text-lg text-[#3dc1d3]">{item.icon}</span>
+                    <span className="text-lg text-black dark:text-white">{item.icon}</span>
                     <span className="font-medium flex-1 text-right text-base">{item.title}</span>
                     <ChevronDownIcon className={`h-4 w-4 transition-transform duration-300 text-muted-foreground ${isOpen ? 'rotate-180 text-[#3dc1d3]' : ''}`} />
                   </SidebarMenuButton>
@@ -65,7 +65,7 @@ export function NavMain({
                       tooltip={item.title}
                       className="relative mx-1 rounded-xl transition-all duration-300 hover:bg-gradient-to-r hover:from-[#3dc1d3]/10 hover:to-transparent hover:text-[#3dc1d3] hover:shadow-md hover:shadow-[#3dc1d3]/10 hover:translate-x-1 active:bg-gradient-to-r active:from-[#3dc1d3]/20 active:to-transparent active:text-[#3dc1d3] data-[active=true]:bg-gradient-to-r data-[active=true]:from-[#3dc1d3]/15 data-[active=true]:to-transparent data-[active=true]:text-[#3dc1d3] data-[active=true]:font-semibold data-[active=true]:shadow-md data-[active=true]:shadow-[#3dc1d3]/15"
                     >
-                      <span className="text-lg text-[#3dc1d3]">{item.icon}</span>
+                      <span className="text-lg text-black dark:text-white">{item.icon}</span>
                       <span className="font-medium text-base">{item.title}</span>
                     </SidebarMenuButton>
                   </Link>
