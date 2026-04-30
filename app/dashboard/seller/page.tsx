@@ -350,30 +350,57 @@ export default function SellerPage() {
     <div className="space-y-6" dir="rtl">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-             <Card className="border border-green-500 shadow-lg p-4 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-xs sm:text-sm text-green-600 dark:text-green-400">فرۆشتنی ئەمرۆ</p>
-              <p className="mt-1 sm:mt-2 text-xl sm:text-2xl font-bold text-green-900 dark:text-green-100">
-                {formatMoney(todayProfit)}
-              </p>
+        {/* Today's Sales Card */}
+        <div className="relative group">
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-green-500 to-emerald-500 opacity-0 rounded-2xl group-hover:opacity-100 transition duration-300" />
+          <div className="relative bg-green-50 dark:bg-slate-900 rounded-2xl p-5 transition-all duration-300 group-hover:shadow-lg border border-transparent hover:border-green-200 dark:hover:border-slate-600">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <TrendingUp className="size-6 text-white" />
+              </div>
+              <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
+                ئەمڕۆ
+              </div>
             </div>
-            <TrendingUp className="h-8 w-8 sm:h-10 sm:w-10 text-green-500" />
-          </div>
-        </Card>
-        <Card className="border border-primary shadow-lg p-4 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <p className="text-xs sm:text-sm text-primary">کۆی فرۆشتن</p>
-              <p className="mt-1 sm:mt-2 text-xl sm:text-2xl font-bold text-primary">
-                {formatMoney(todayProfit)}
-              </p>
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">فرۆشتنی ئەمرۆ</p>
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">{formatMoney(todayProfit)}</h3>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="size-3.5 text-slate-500 dark:text-slate-400" />
+                  <span className="text-xs text-slate-600 dark:text-slate-400">فرۆشتن</span>
+                </div>
+                <span className="text-sm font-semibold text-slate-900 dark:text-white">{sales.filter(s => s.date === getToday()).length}</span>
+              </div>
             </div>
-            <Package className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
           </div>
-        </Card>
+        </div>
 
-
+        {/* Total Sales Card */}
+        <div className="relative group">
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-500 opacity-0 rounded-2xl group-hover:opacity-100 transition duration-300" />
+          <div className="relative bg-blue-50 dark:bg-slate-900 rounded-2xl p-5 transition-all duration-300 group-hover:shadow-lg border border-transparent hover:border-blue-200 dark:hover:border-slate-600">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-3 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <Package className="size-6 text-white" />
+              </div>
+              <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                کۆی
+              </div>
+            </div>
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">کۆی فرۆشتن</p>
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">{formatMoney(totalProfit)}</h3>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
+                <div className="flex items-center gap-2">
+                  <Package className="size-3.5 text-slate-500 dark:text-slate-400" />
+                  <span className="text-xs text-slate-600 dark:text-slate-400">فرۆشتن</span>
+                </div>
+                <span className="text-sm font-semibold text-slate-900 dark:text-white">{sales.length}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Search and Add Button */}

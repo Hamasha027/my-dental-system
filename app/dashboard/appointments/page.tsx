@@ -363,42 +363,90 @@ export default function AppointmentsPage() {
       {(treatmentStats.length > 0 || totalMoney > 0) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {/* Total Money Card */}
-          <Card className="border-1 border-green-500 shadow-lg p-4 sm:p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-xs sm:text-sm text-green-600 dark:text-green-400 truncate">
-                  داهاتی ئەمڕۆ
-                </p>
-                <p className="mt-1 sm:mt-2 text-xl sm:text-2xl font-bold text-green-900 dark:text-green-100">
-                  {totalMoney.toLocaleString('en-US')} هەزار
-                </p>
+          <div className="relative group">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 opacity-0 rounded-2xl group-hover:opacity-100 transition duration-300" />
+            <div className="relative bg-emerald-50 dark:bg-slate-900 rounded-2xl p-5 transition-all duration-300 group-hover:shadow-lg border border-transparent hover:border-emerald-200 dark:hover:border-slate-600">
+              <div className="flex items-start justify-between mb-4">
+                <div className="p-3 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <DollarSign className="size-6 text-white" />
+                </div>
+                <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
+                  داهات
+                </div>
               </div>
-              <User className="h-8 w-8 sm:h-10 sm:w-10 text-green-500" />
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">داهاتی ئەمڕۆ</p>
+              <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">{totalMoney.toLocaleString('en-US')} هەزار</h3>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="size-3.5 text-slate-500 dark:text-slate-400" />
+                    <span className="text-xs text-slate-600 dark:text-slate-400">دانیشتەکان</span>
+                  </div>
+                  <span className="text-sm font-semibold text-slate-900 dark:text-white">{appointments.length}</span>
+                </div>
+              </div>
             </div>
-          </Card>
+          </div>
 
           {/* Treatment Type Cards */}
-          {treatmentStats.map((stat) => (
-            <Card
-              key={stat.treatmentType}
-              className={`border-1 shadow-lg p-4 sm:p-6 ${getTreatmentColor(stat.treatmentType).border}`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className={`text-xs sm:text-sm truncate ${getTreatmentColor(stat.treatmentType).title}`}>
-                    {stat.treatmentType}
-                  </p>
-                  <p className={`mt-1 sm:mt-2 text-xl sm:text-2xl font-bold ${getTreatmentColor(stat.treatmentType).value}`}>
-                    {stat.count}
-                  </p>
-                  <p className={`mt-1 text-xs sm:text-sm ${getTreatmentColor(stat.treatmentType).title}`}>
-                    {stat.totalMoney.toLocaleString('en-US')} هەزار
-                  </p>
+          {treatmentStats.map((stat) => {
+            const colors = getTreatmentColor(stat.treatmentType);
+            const gradientColors = {
+              'شۆردنی دندان': 'from-blue-500 to-indigo-500',
+              'تەلی ددان': 'from-red-500 to-pink-500',
+              'پڕکردنەوەی ددان': 'from-green-500 to-emerald-500',
+              'هەڵقەندنی دندان': 'from-purple-500 to-violet-500',
+              'هی تر': 'from-gray-500 to-slate-500',
+            };
+            const bgColors = {
+              'شۆردنی دندان': 'bg-blue-50 dark:bg-slate-900',
+              'تەلی ددان': 'bg-rose-50 dark:bg-slate-900',
+              'پڕکردنەوەی ددان': 'bg-green-50 dark:bg-slate-900',
+              'هەڵقەندنی دندان': 'bg-purple-50 dark:bg-slate-900',
+              'هی تر': 'bg-gray-50 dark:bg-slate-900',
+            };
+            const badgeColors = {
+              'شۆردنی دندان': 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
+              'تەلی ددان': 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400',
+              'پڕکردنەوەی ددان': 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
+              'هەڵقەندنی دندان': 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
+              'هی تر': 'bg-gray-100 dark:bg-gray-900/30 text-gray-600 dark:text-gray-400',
+            };
+            const hoverBorder = {
+              'شۆردنی دندان': 'hover:border-blue-200',
+              'تەلی ددان': 'hover:border-rose-200',
+              'پڕکردنەوەی ددان': 'hover:border-green-200',
+              'هەڵقەندنی دندان': 'hover:border-purple-200',
+              'هی تر': 'hover:border-gray-200',
+            };
+
+            return (
+              <div key={stat.treatmentType} className="relative group">
+                <div className={`absolute -inset-0.5 bg-gradient-to-r ${gradientColors[stat.treatmentType] || 'from-gray-500 to-slate-500'} opacity-0 rounded-2xl group-hover:opacity-100 transition duration-300`} />
+                <div className={`relative ${bgColors[stat.treatmentType] || 'bg-gray-50 dark:bg-slate-900'} rounded-2xl p-5 transition-all duration-300 group-hover:shadow-lg border border-transparent ${hoverBorder[stat.treatmentType] || ''} dark:hover:border-slate-600`}>
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`p-3 bg-gradient-to-r ${gradientColors[stat.treatmentType] || 'from-gray-500 to-slate-500'} rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                      <User className="size-6 text-white" />
+                    </div>
+                    <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold ${badgeColors[stat.treatmentType] || ''}`}>
+                      {stat.count}
+                    </div>
+                  </div>
+                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">{stat.treatmentType}</p>
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">{stat.totalMoney.toLocaleString('en-US')} هەزار</h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
+                      <div className="flex items-center gap-2">
+                        <User className="size-3.5 text-slate-500 dark:text-slate-400" />
+                        <span className="text-xs text-slate-600 dark:text-slate-400">دانیشتەکان</span>
+                      </div>
+                      <span className="text-sm font-semibold text-slate-900 dark:text-white">{stat.count}</span>
+                    </div>
+                  </div>
                 </div>
-                <User className={`h-8 w-8 sm:h-10 sm:w-10 ${getTreatmentColor(stat.treatmentType).icon}`} />
               </div>
-            </Card>
-          ))}
+            );
+          })}
         </div>
       )}
   <div className="flex flex-row items-center justify-between gap-3">

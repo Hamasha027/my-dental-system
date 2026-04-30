@@ -627,18 +627,60 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      <Card className="border border-border/60 p-4 sm:p-6 shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex-1">
-            <h2 className="text-base sm:text-lg font-semibold">کۆی خەرجییەکانی ئەم مانگە</h2>
-            <p className="text-xs sm:text-sm text-muted-foreground">{getMonthLabel()}</p>
-          </div>
-          <div className="flex items-center gap-2 rounded-lg bg-primary/10 px-4 py-2 text-primary">
-            <Wallet className="h-5 w-5 sm:h-6 sm:w-6" />
-            <span className="text-lg sm:text-xl font-bold">{formatAmount(monthlyTotal)}</span>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        {/* Monthly Total Card */}
+        <div className="relative group">
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-red-500 to-rose-500 opacity-0 rounded-2xl group-hover:opacity-100 transition duration-300" />
+          <div className="relative bg-red-50 dark:bg-slate-900 rounded-2xl p-5 transition-all duration-300 group-hover:shadow-lg border border-transparent hover:border-red-200 dark:hover:border-slate-600">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-3 bg-gradient-to-r from-red-500 to-rose-500 rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <Wallet className="size-6 text-white" />
+              </div>
+              <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+                ئەم مانگە
+              </div>
+            </div>
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">کۆی خەرجییەکانی ئەم مانگە</p>
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">{formatAmount(monthlyTotal)}</h3>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
+                <div className="flex items-center gap-2">
+                  <Wallet className="size-3.5 text-slate-500 dark:text-slate-400" />
+                  <span className="text-xs text-slate-600 dark:text-slate-400">خەرجی</span>
+                </div>
+                <span className="text-sm font-semibold text-slate-900 dark:text-white">{expenses.length}</span>
+              </div>
+            </div>
           </div>
         </div>
-      </Card>
+
+        {/* Total Expenses Card */}
+        <div className="relative group">
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500 to-amber-500 opacity-0 rounded-2xl group-hover:opacity-100 transition duration-300" />
+          <div className="relative bg-orange-50 dark:bg-slate-900 rounded-2xl p-5 transition-all duration-300 group-hover:shadow-lg border border-transparent hover:border-orange-200 dark:hover:border-slate-600">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-3 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <AlertCircle className="size-6 text-white" />
+              </div>
+              <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
+                کۆی
+              </div>
+            </div>
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">{getMonthLabel()}</p>
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">{getMonthLabel()}</h3>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="size-3.5 text-slate-500 dark:text-slate-400" />
+                  <span className="text-xs text-slate-600 dark:text-slate-400">خەرجی</span>
+                </div>
+                <span className="text-sm font-semibold text-slate-900 dark:text-white">{expenses.length}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="flex flex-row items-center justify-between gap-3">
         <div className="flex-1 relative">

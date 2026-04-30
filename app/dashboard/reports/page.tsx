@@ -851,124 +851,153 @@ function ReportsPageContent() {
 
       <div className="grid gap-4 md:grid-cols-3">
         {activeReport !== "employees" && (
-          <Card className="relative border border-[#2ea7b8] shadow-lg p-6 pl-20 md:col-span-2">
-            <div className="absolute left-6 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-[#3dc1d3]/15 text-[#2ea7b8]">
-              <FileText className="h-5 w-5" />
-            </div>
-            <div className="mb-4 flex items-center justify-start gap-2 text-[#2ea7b8]">
-              <p className="text-sm text-[#3dc1d3] dark:text-[#35aebb]">هەڵبژاردنی ماوە</p>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="w-full text-right">
-                <Select value={period} onValueChange={(value: PeriodType) => setPeriod(value)}>
-                  <SelectTrigger className="h-10 rounded-lg text-right border-2 focus-visible:ring-[#2ea7b8]/25">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="today">ڕۆژانە (ئەمڕۆ)</SelectItem>
-                    <SelectItem value="week">هەفتانە - 7 ڕۆژی ڕابردوو </SelectItem>
-                    <SelectItem value="month">مانگانە (ئەم مانگە)</SelectItem>
-                    <SelectItem value="year">ساڵانە (ئەم ساڵە)</SelectItem>
-                    <SelectItem value="custom">بەرواری دیاریکراو</SelectItem>
-                    <SelectItem value="all">هەموو ماوەکان</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {period === "custom" ? (
-                <div className="w-full text-right">
-                  <Input
-                    type="date"
-                    value={customDate}
-                    onChange={(e) => setCustomDate(e.target.value)}
-                    className="h-10 rounded-lg"
-                  />
+          <div className="relative group md:col-span-2">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-[#2ea7b8] to-[#3dc1d3] opacity-0 rounded-2xl group-hover:opacity-100 transition duration-300" />
+            <div className="relative bg-[#e0f7fa] dark:bg-slate-900 rounded-2xl p-10 transition-all duration-300 group-hover:shadow-lg border border-transparent hover:border-[#2ea7b8] dark:hover:border-slate-600">
+              <div className="flex items-start justify-between mb-4">
+                <div className="p-3 bg-gradient-to-r from-[#2ea7b8] to-[#3dc1d3] rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <FileText className="size-6 text-white" />
                 </div>
-              ) : (
-                <div className="hidden md:block" />
-              )}
+                <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-[#b2ebf2] dark:bg-[#2ea7b8]/30 text-[#2ea7b8] dark:text-[#3dc1d3]">
+                    فلتەر کردن 
+                </div>
+              </div>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-4">هەڵبژاردنی ماوە</p>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="w-full text-right">
+                  <Select value={period} onValueChange={(value: PeriodType) => setPeriod(value)}>
+                    <SelectTrigger className="h-10 rounded-lg text-right border-2 focus-visible:ring-[#2ea7b8]/25">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="today">ڕۆژانە (ئەمڕۆ)</SelectItem>
+                      <SelectItem value="week">هەفتانە - 7 ڕۆژی ڕابردوو </SelectItem>
+                      <SelectItem value="month">مانگانە (ئەم مانگە)</SelectItem>
+                      <SelectItem value="year">ساڵانە (ئەم ساڵە)</SelectItem>
+                      <SelectItem value="custom">بەرواری دیاریکراو</SelectItem>
+                      <SelectItem value="all">هەموو ماوەکان</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {period === "custom" ? (
+                  <div className="w-full text-right">
+                    <Input
+                      type="date"
+                      value={customDate}
+                      onChange={(e) => setCustomDate(e.target.value)}
+                      className="h-10 rounded-lg"
+                    />
+                  </div>
+                ) : (
+                  <div className="hidden md:block" />
+                )}
+              </div>
             </div>
-          </Card>
+          </div>
         )}
 
         {activeReport === "employees" && (
-          <Card className="relative border border-[#2ea7b8] shadow-lg p-6 pl-20 md:col-span-2">
-            <div className="absolute left-6 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-[#3dc1d3]/15 text-[#2ea7b8]">
-              <User className="h-5 w-5" />
-            </div>
-            <div className="mb-4 flex items-center justify-start gap-2 text-[#2ea7b8]">
-              <p className="text-sm text-[#3dc1d3] dark:text-[#35aebb]">ڕاپۆرتی مانگانەی کارمەندەکان</p>
-            </div>
-            <div className="flex gap-2 mb-2">
-              <Select
-                value={selectedReportYear.toString()}
-                onValueChange={(value) => setSelectedReportYear(Number(value))}
-              >
-                <SelectTrigger className="w-32 border-border/90 focus-visible:ring-2 focus-visible:ring-primary/20">
-                  <SelectValue placeholder="ساڵ" />
-                </SelectTrigger>
-                <SelectContent dir="rtl">
-                  {Array.from({ length: 20 }, (_, i) => 2020 + i).map((year) => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={selectedReportMonth.toString()}
-                onValueChange={(value) => setSelectedReportMonth(Number(value))}
-              >
-                <SelectTrigger className="w-40 border-border/90 focus-visible:ring-2 focus-visible:ring-primary/20">
-                  <SelectValue placeholder="مانگ" />
-                </SelectTrigger>
-                <SelectContent dir="rtl">
-                  {[
-                    { value: 1, label: 'کانونی دووەم' },
-                    { value: 2, label: 'شوبات' },
-                    { value: 3, label: 'ئازار' },
-                    { value: 4, label: 'نیسان' },
-                    { value: 5, label: 'ئایار' },
-                    { value: 6, label: 'حوزەیران' },
-                    { value: 7, label: 'تەممووز' },
-                    { value: 8, label: 'ئاب' },
-                    { value: 9, label: 'ئەیلول' },
-                    { value: 10, label: 'تشرینی یەکەم' },
-                    { value: 11, label: 'تشرینی دووەم' },
-                    { value: 12, label: 'کانونی یەکەم' },
-                  ].map((month) => (
-                    <SelectItem key={month.value} value={month.value.toString()}>
-                      {month.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="text-sm text-muted-foreground">
-              داتای مانگانەی کارمەندان پیشان دەدرێت. دەتوانیت بەپێی مانگ و ساڵ بگەڕێی.
-            </div>
-          </Card>
-        )}
-
-        <Card className="border border-red-500 shadow-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-red-600 dark:text-red-400">
-                {activeReport === "expenses" ? "کۆی گشتی خەرجیەکان" :
-                 activeReport === "employees" ? "کۆی گشتی مووچەکان" :
-                 activeReport === "sales" ? "کۆی گشتی قازانج" :
-                 activeReport === "payment-history" ? "کۆی گشتی پارەدان" : "کۆی گشتی قیسەکان"}
-              </p>
-              <p className="mt-2 text-2xl font-bold text-red-900 dark:text-red-100">
-                {formatMoney(activeReport === "expenses" ? expenseTotal : activeReport === "employees" ? employeesTotal : activeReport === "sales" ? salesTotal : activeReport === "payment-history" ? paymentHistoryTotal : installmentsTotal)}
-              </p>
-            </div>
-            <div className="inline-flex h-10 mt-4 w-10 items-center justify-center rounded-full bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">
-              <Wallet className="h-5 w-5 " />
+          <div className="relative group md:col-span-2">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-[#2ea7b8] to-[#3dc1d3] opacity-0 rounded-2xl group-hover:opacity-100 transition duration-300" />
+            <div className="relative bg-[#e0f7fa] dark:bg-slate-900 rounded-2xl p-5 transition-all duration-300 group-hover:shadow-lg border border-transparent hover:border-[#2ea7b8] dark:hover:border-slate-600">
+              <div className="flex items-start justify-between mb-4">
+                <div className="p-3 bg-gradient-to-r from-[#2ea7b8] to-[#3dc1d3] rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <User className="size-6 text-white" />
+                </div>
+                <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-[#b2ebf2] dark:bg-[#2ea7b8]/30 text-[#2ea7b8] dark:text-[#3dc1d3]">
+                  کارمەند
+                </div>
+              </div>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-7">ڕاپۆرتی مانگانەی کارمەندەکان</p>
+              <div className="flex gap-2 mb-2">
+                <Select
+                  value={selectedReportYear.toString()}
+                  onValueChange={(value) => setSelectedReportYear(Number(value))}
+                >
+                  <SelectTrigger className="w-32 border-border/90 focus-visible:ring-2 focus-visible:ring-primary/20">
+                    <SelectValue placeholder="ساڵ" />
+                  </SelectTrigger>
+                  <SelectContent dir="rtl">
+                    {Array.from({ length: 20 }, (_, i) => 2020 + i).map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={selectedReportMonth.toString()}
+                  onValueChange={(value) => setSelectedReportMonth(Number(value))}
+                >
+                  <SelectTrigger className="w-40 border-border/90 focus-visible:ring-2 focus-visible:ring-primary/20">
+                    <SelectValue placeholder="مانگ" />
+                  </SelectTrigger>
+                  <SelectContent dir="rtl">
+                    {[
+                      { value: 1, label: 'کانونی دووەم' },
+                      { value: 2, label: 'شوبات' },
+                      { value: 3, label: 'ئازار' },
+                      { value: 4, label: 'نیسان' },
+                      { value: 5, label: 'ئایار' },
+                      { value: 6, label: 'حوزەیران' },
+                      { value: 7, label: 'تەممووز' },
+                      { value: 8, label: 'ئاب' },
+                      { value: 9, label: 'ئەیلول' },
+                      { value: 10, label: 'تشرینی یەکەم' },
+                      { value: 11, label: 'تشرینی دووەم' },
+                      { value: 12, label: 'کانونی یەکەم' },
+                    ].map((month) => (
+                      <SelectItem key={month.value} value={month.value.toString()}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                داتای مانگانەی کارمەندان پیشان دەدرێت. دەتوانیت بەپێی مانگ و ساڵ بگەڕێی.
+              </div>
             </div>
           </div>
-        </Card>
+        )}
+
+        <div className="relative group">
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-red-500 to-rose-500 opacity-0 rounded-2xl group-hover:opacity-100 transition duration-300" />
+          <div className="relative bg-red-50 dark:bg-slate-900 rounded-2xl p-5 transition-all duration-300 group-hover:shadow-lg border border-transparent hover:border-red-200 dark:hover:border-slate-600">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-3 bg-gradient-to-r from-red-500 to-rose-500 rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <Wallet className="size-6 text-white" />
+              </div>
+              <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+                کۆی گشتی
+              </div>
+            </div>
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
+              {activeReport === "expenses" ? "کۆی گشتی خەرجیەکان" :
+               activeReport === "employees" ? "کۆی گشتی مووچەکان" :
+               activeReport === "sales" ? "کۆی گشتی قازانج" :
+               activeReport === "payment-history" ? "کۆی گشتی پارەدان" : "کۆی گشتی قیسەکان"}
+            </p>
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
+              {formatMoney(activeReport === "expenses" ? expenseTotal : activeReport === "employees" ? employeesTotal : activeReport === "sales" ? salesTotal : activeReport === "payment-history" ? paymentHistoryTotal : installmentsTotal)}
+            </h3>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
+                <div className="flex items-center gap-2">
+                  <Wallet className="size-3.5 text-slate-500 dark:text-slate-400" />
+                  <span className="text-xs text-slate-600 dark:text-slate-400">تۆمار</span>
+                </div>
+                <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                  {activeReport === "expenses" ? filteredExpenses.length :
+                   activeReport === "employees" ? employeePayrollReports.length :
+                   activeReport === "sales" ? filteredSales.length :
+                   activeReport === "payment-history" ? filteredPaymentHistory.length : filteredInstallments.length}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 overflow-x-auto pb-2">
