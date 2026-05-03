@@ -546,14 +546,36 @@ function ReportsPageContent() {
       const paidAmount = Number(installment.paidAmount || 0)
       const remainingAmount = Number(installment.remainingAmount || 0)
 
-      const paymentRowsHtml = installment.paymentHistory && installment.paymentHistory.length > 0
-        ? installment.paymentHistory.map((ph, i) => `
-            <tr>
-              <td style="border:1px solid #d1d5db;padding:8px;text-align:center;">${i + 1}</td>
-              <td style="border:1px solid #d1d5db;padding:8px;">${formatDate(ph.paymentDate)}</td>
-              <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(ph.amountPaid)}</td>
-            </tr>
-          `).join('')
+      // Calculate initial payment (the amount paid when installment was created)
+      const historyTotal = installment.paymentHistory?.reduce((sum, ph) => sum + Number(ph.amountPaid || 0), 0) || 0
+      const initialPayment = Math.max(0, paidAmount - historyTotal)
+
+      let paymentRows: string[] = []
+
+      // Add initial payment row if exists
+      if (initialPayment > 0) {
+        paymentRows.push(`
+          <tr>
+            <td style="border:1px solid #d1d5db;padding:8px;text-align:center;">1</td>
+            <td style="border:1px solid #d1d5db;padding:8px;">${installment.createdAt ? formatDate(installment.createdAt) : '-'}</td>
+            <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(initialPayment)}</td>
+          </tr>
+        `)
+      }
+
+      // Add recorded payment history rows
+      if (installment.paymentHistory && installment.paymentHistory.length > 0) {
+        paymentRows.push(...installment.paymentHistory.map((ph, i) => `
+          <tr>
+            <td style="border:1px solid #d1d5db;padding:8px;text-align:center;">${initialPayment > 0 ? i + 2 : i + 1}</td>
+            <td style="border:1px solid #d1d5db;padding:8px;">${formatDate(ph.paymentDate)}</td>
+            <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(ph.amountPaid)}</td>
+          </tr>
+        `))
+      }
+
+      const paymentRowsHtml = paymentRows.length > 0
+        ? paymentRows.join('')
         : `<tr><td colspan="3" style="border:1px solid #d1d5db;padding:8px;text-align:center;">هیچ پارەدانێک تۆمار نەکراوە</td></tr>`
 
       const patientHtml = `
@@ -832,14 +854,36 @@ function ReportsPageContent() {
           const paidAmount = Number(item.paidAmount || 0)
           const remainingAmount = Number(item.remainingAmount || 0)
 
-          const paymentRowsHtml = item.paymentHistory && item.paymentHistory.length > 0
-            ? item.paymentHistory.map((ph, i) => `
-                <tr>
-                  <td style="border:1px solid #d1d5db;padding:8px;text-align:center;">${i + 1}</td>
-                  <td style="border:1px solid #d1d5db;padding:8px;">${formatDate(ph.paymentDate)}</td>
-                  <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(ph.amountPaid)}</td>
-                </tr>
-              `).join('')
+          // Calculate initial payment (the amount paid when installment was created)
+          const historyTotal = item.paymentHistory?.reduce((sum, ph) => sum + Number(ph.amountPaid || 0), 0) || 0
+          const initialPayment = Math.max(0, paidAmount - historyTotal)
+
+          let paymentRows: string[] = []
+
+          // Add initial payment row if exists
+          if (initialPayment > 0) {
+            paymentRows.push(`
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;text-align:center;">1</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${item.createdAt ? formatDate(item.createdAt) : '-'}</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(initialPayment)}</td>
+              </tr>
+            `)
+          }
+
+          // Add recorded payment history rows
+          if (item.paymentHistory && item.paymentHistory.length > 0) {
+            paymentRows.push(...item.paymentHistory.map((ph, i) => `
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;text-align:center;">${initialPayment > 0 ? i + 2 : i + 1}</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${formatDate(ph.paymentDate)}</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(ph.amountPaid)}</td>
+              </tr>
+            `))
+          }
+
+          const paymentRowsHtml = paymentRows.length > 0
+            ? paymentRows.join('')
             : `<tr><td colspan="3" style="border:1px solid #d1d5db;padding:8px;text-align:center;">هیچ پارەدانێک تۆمار نەکراوە</td></tr>`
 
           return `
