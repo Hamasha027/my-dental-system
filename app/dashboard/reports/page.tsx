@@ -128,7 +128,7 @@ interface InstallmentPaymentFormData extends PaymentFormData {
 const reportTabs: { key: ReportType; label: string }[] = [
   { key: "expenses", label: "ڕاپۆرتی خەرجیەکان" },
   { key: "employees", label: "ڕاپۆرتی کارمەندەکان" },
-  { key: "installments", label: "ڕاپۆرتی قیسەکان" },
+  { key: "installments", label: "ڕاپۆرتی قیستەکان" },
   { key: "sales", label: "ڕاپۆرتی فرۆشتن" },
 ]
 
@@ -1099,121 +1099,58 @@ function ReportsPageContent() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        {activeReport !== "employees" && (
-          <div className="relative group md:col-span-2">
+        <div className="relative group md:col-span-2">
             <div className="absolute -inset-0.5 bg-gradient-to-r from-[#2ea7b8] to-[#3dc1d3] opacity-0 rounded-2xl group-hover:opacity-100 transition duration-300" />
-            <div className="relative bg-[#e0f7fa] dark:bg-slate-900 rounded-2xl p-10 transition-all duration-300 group-hover:shadow-lg border border-transparent hover:border-[#2ea7b8] dark:hover:border-slate-600">
-              <div className="flex items-start justify-between mb-4">
+            <div className="relative bg-[#e0f7fa] dark:bg-slate-900 rounded-2xl p-6 transition-all duration-300 group-hover:shadow-lg border border-transparent hover:border-[#2ea7b8] dark:hover:border-slate-600">
+              <div className="flex items-start justify-between mb-6">
                 <div className="p-3 bg-gradient-to-r from-[#2ea7b8] to-[#3dc1d3] rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
                   <FileText className="size-6 text-white" />
                 </div>
                 <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-[#b2ebf2] dark:bg-[#2ea7b8]/30 text-[#2ea7b8] dark:text-[#3dc1d3]">
-                    فلتەر کردن 
+                  ڕاپۆرت
                 </div>
               </div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-4">هەڵبژاردنی ماوە</p>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="w-full text-right">
-                  <Select value={period} onValueChange={(value: PeriodType) => setPeriod(value)}>
-                    <SelectTrigger className="h-10 rounded-lg text-right border-2 focus-visible:ring-[#2ea7b8]/25">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="today">ڕۆژانە (ئەمڕۆ)</SelectItem>
-                      <SelectItem value="week">هەفتانە - 7 ڕۆژی ڕابردوو </SelectItem>
-                      <SelectItem value="month">مانگانە (ئەم مانگە)</SelectItem>
-                      <SelectItem value="year">ساڵانە (ئەم ساڵە)</SelectItem>
-                      <SelectItem value="custom">بەرواری دیاریکراو</SelectItem>
-                      <SelectItem value="all">هەموو ماوەکان</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {period === "custom" ? (
-                  <div className="w-full text-right">
-                    <Input
-                      type="date"
-                      value={customDate}
-                      onChange={(e) => setCustomDate(e.target.value)}
-                      className="h-10 rounded-lg"
-                    />
-                  </div>
-                ) : (
-                  <div className="hidden md:block" />
-                )}
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-6">دەتوانی ڕاپۆرتی هەموو بەشەکان ببینی لەم بەشە و پرێنت بکەیت</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  onClick={() => onChangeReport("expenses")}
+                  variant={activeReport === "expenses" ? "default" : "outline"}
+                  className="justify-start gap-2 bg-[#2ea7b8] hover:bg-[#2496a6] text-white border-[#2ea7b8]"
+                >
+                  <Wallet className="size-4" />
+                  خەرجیەکان
+                </Button>
+                <Button
+                  onClick={() => onChangeReport("installments")}
+                  variant={activeReport === "installments" ? "default" : "outline"}
+                  className="justify-start gap-2 bg-[#2ea7b8] hover:bg-[#2496a6] text-white border-[#2ea7b8]"
+                >
+                  <TrendingUp className="size-4" />
+                  قیستەکان
+                </Button>
+                <Button
+                  onClick={() => onChangeReport("sales")}
+                  variant={activeReport === "sales" ? "default" : "outline"}
+                  className="justify-start gap-2 bg-[#2ea7b8] hover:bg-[#2496a6] text-white border-[#2ea7b8]"
+                >
+                  <DollarSign className="size-4" />
+                  فرۆشتن
+                </Button>
+                <Button
+                  onClick={() => onChangeReport("employees")}
+                  variant={activeReport === "employees" ? "default" : "outline"}
+                  className="justify-start gap-2 bg-[#2ea7b8] hover:bg-[#2496a6] text-white border-[#2ea7b8]"
+                >
+                  <User className="size-4" />
+                  کارمەندەکان
+                </Button>
               </div>
             </div>
           </div>
-        )}
-
-        {activeReport === "employees" && (
-          <div className="relative group md:col-span-2">
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-[#2ea7b8] to-[#3dc1d3] opacity-0 rounded-2xl group-hover:opacity-100 transition duration-300" />
-            <div className="relative bg-[#e0f7fa] dark:bg-slate-900 rounded-2xl p-5 transition-all duration-300 group-hover:shadow-lg border border-transparent hover:border-[#2ea7b8] dark:hover:border-slate-600">
-              <div className="flex items-start justify-between mb-4">
-                <div className="p-3 bg-gradient-to-r from-[#2ea7b8] to-[#3dc1d3] rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  <User className="size-6 text-white" />
-                </div>
-                <div className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-[#b2ebf2] dark:bg-[#2ea7b8]/30 text-[#2ea7b8] dark:text-[#3dc1d3]">
-                  کارمەند
-                </div>
-              </div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-7">ڕاپۆرتی مانگانەی کارمەندەکان</p>
-              <div className="flex gap-2 mb-2">
-                <Select
-                  value={selectedReportYear.toString()}
-                  onValueChange={(value) => setSelectedReportYear(Number(value))}
-                >
-                  <SelectTrigger className="w-32 border-border/90 focus-visible:ring-2 focus-visible:ring-primary/20">
-                    <SelectValue placeholder="ساڵ" />
-                  </SelectTrigger>
-                  <SelectContent dir="rtl">
-                    {Array.from({ length: 20 }, (_, i) => 2020 + i).map((year) => (
-                      <SelectItem key={year} value={year.toString()}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={selectedReportMonth.toString()}
-                  onValueChange={(value) => setSelectedReportMonth(Number(value))}
-                >
-                  <SelectTrigger className="w-40 border-border/90 focus-visible:ring-2 focus-visible:ring-primary/20">
-                    <SelectValue placeholder="مانگ" />
-                  </SelectTrigger>
-                  <SelectContent dir="rtl">
-                    {[
-                      { value: 1, label: 'کانونی دووەم' },
-                      { value: 2, label: 'شوبات' },
-                      { value: 3, label: 'ئازار' },
-                      { value: 4, label: 'نیسان' },
-                      { value: 5, label: 'ئایار' },
-                      { value: 6, label: 'حوزەیران' },
-                      { value: 7, label: 'تەممووز' },
-                      { value: 8, label: 'ئاب' },
-                      { value: 9, label: 'ئەیلول' },
-                      { value: 10, label: 'تشرینی یەکەم' },
-                      { value: 11, label: 'تشرینی دووەم' },
-                      { value: 12, label: 'کانونی یەکەم' },
-                    ].map((month) => (
-                      <SelectItem key={month.value} value={month.value.toString()}>
-                        {month.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                داتای مانگانەی کارمەندان پیشان دەدرێت. دەتوانیت بەپێی مانگ و ساڵ بگەڕێی.
-              </div>
-            </div>
-          </div>
-        )}
 
         <div className="relative group">
           <div className="absolute -inset-0.5 bg-gradient-to-r from-red-500 to-rose-500 opacity-0 rounded-2xl group-hover:opacity-100 transition duration-300" />
-          <div className="relative bg-red-50 dark:bg-slate-900 rounded-2xl p-5 transition-all duration-300 group-hover:shadow-lg border border-transparent hover:border-red-200 dark:hover:border-slate-600">
+          <div className="relative bg-red-50 dark:bg-slate-900 rounded-2xl p-9 transition-all duration-300 group-hover:shadow-lg border border-transparent hover:border-red-200 dark:hover:border-slate-600">
             <div className="flex items-start justify-between mb-4">
               <div className="p-3 bg-gradient-to-r from-red-500 to-rose-500 rounded-xl shadow-lg group-hover:scale-110 transition-transform duration-300">
                 <Wallet className="size-6 text-white" />
@@ -1226,7 +1163,7 @@ function ReportsPageContent() {
               {activeReport === "expenses" ? "کۆی گشتی خەرجیەکان" :
                activeReport === "employees" ? "کۆی گشتی مووچەکان" :
                activeReport === "sales" ? "کۆی گشتی قازانج" :
-               activeReport === "payment-history" ? "کۆی گشتی پارەدان" : "کۆی گشتی قیسەکان"}
+               activeReport === "payment-history" ? "کۆی گشتی پارەدان" : "کۆی گشتی قیستەکان"}
             </p>
             <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
               {formatMoney(activeReport === "expenses" ? expenseTotal : activeReport === "employees" ? employeesTotal : activeReport === "sales" ? salesTotal : activeReport === "payment-history" ? paymentHistoryTotal : installmentsTotal)}

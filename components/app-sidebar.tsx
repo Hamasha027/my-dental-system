@@ -83,7 +83,7 @@ const navMain = [
         url: "/dashboard/reports?type=employees",
       },
       {
-        title: " قیسەکان",
+        title: " قیستەکان",
         url: "/dashboard/reports?type=installments",
       },
       {
