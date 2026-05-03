@@ -31,12 +31,37 @@ async function runMigration() {
           "installment_value" numeric(10, 2) NOT NULL,
           "next_payment_date" date,
           "status" "installment_status" DEFAULT 'Pending',
+          "age" text,
+          "phone_number" text,
+          "address" text,
           "created_at" timestamp DEFAULT now()
         )
       `);
       console.log('✓ Created installments table');
     } catch (e: any) {
       console.log('Error creating installments table:', e.message);
+    }
+
+    // Add new columns to installments table if they don't exist
+    try {
+      await sql.query(`ALTER TABLE "installments" ADD COLUMN IF NOT EXISTS "age" text`);
+      console.log('✓ Added age column');
+    } catch (e: any) {
+      console.log('Error adding age column:', e.message);
+    }
+
+    try {
+      await sql.query(`ALTER TABLE "installments" ADD COLUMN IF NOT EXISTS "phone_number" text`);
+      console.log('✓ Added phone_number column');
+    } catch (e: any) {
+      console.log('Error adding phone_number column:', e.message);
+    }
+
+    try {
+      await sql.query(`ALTER TABLE "installments" ADD COLUMN IF NOT EXISTS "address" text`);
+      console.log('✓ Added address column');
+    } catch (e: any) {
+      console.log('Error adding address column:', e.message);
     }
     
     // Create payment_history table if it doesn't exist

@@ -101,6 +101,9 @@ type Installment = {
   status: 'Paid' | 'Pending' | 'Overdue'
   createdAt: string
   paymentHistory?: { paymentDate: string; amountPaid: string }[]
+  age?: string
+  phoneNumber?: string
+  address?: string
 }
 
 type PaymentHistory = {
@@ -111,6 +114,15 @@ type PaymentHistory = {
   createdAt: string
   patientName: string
   installmentNumber?: number
+}
+
+interface PaymentFormData {
+  amountPaid: string;
+  paymentDate: string;
+}
+
+interface InstallmentPaymentFormData extends PaymentFormData {
+  installmentId?: number;
 }
 
 const reportTabs: { key: ReportType; label: string }[] = [
@@ -527,6 +539,173 @@ function ReportsPageContent() {
     }
   }
 
+  const printPatient = async (installment: Installment) => {
+    let iframe: HTMLIFrameElement | null = null
+    try {
+      const totalAmount = Number(installment.totalAmount || 0)
+      const paidAmount = Number(installment.paidAmount || 0)
+      const remainingAmount = Number(installment.remainingAmount || 0)
+
+      const paymentRowsHtml = installment.paymentHistory && installment.paymentHistory.length > 0
+        ? installment.paymentHistory.map((ph, i) => `
+            <tr>
+              <td style="border:1px solid #d1d5db;padding:8px;text-align:center;">${i + 1}</td>
+              <td style="border:1px solid #d1d5db;padding:8px;">${formatDate(ph.paymentDate)}</td>
+              <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(ph.amountPaid)}</td>
+            </tr>
+          `).join('')
+        : `<tr><td colspan="3" style="border:1px solid #d1d5db;padding:8px;text-align:center;">هیچ پارەدانێک تۆمار نەکراوە</td></tr>`
+
+      const patientHtml = `
+        <div id="pdf-patient" style="direction:rtl;font-family:Arial,sans-serif;background:#ffffff;color:#0f172a;padding:20px;width:900px;">
+          <h1 style="margin:0 0 6px 0;text-align:center;font-size:24px;color:#0f172a;">شا سیستەم - زانیاری قیستی نەخۆش</h1>
+          <p style="margin:0 0 20px 0;text-align:center;color:#475569;font-size:14px;">بەرواری پرێنت: ${new Date().toLocaleDateString("ku-IQ")}</p>
+
+          <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px;">
+            <thead>
+              <tr>
+                <th colspan="2" style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;font-weight:bold;">زانیاری نەخۆش</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;width:30%;background:#f9fafb;font-weight:bold;">ناوی نەخۆش:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${installment.patientName}</td>
+              </tr>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;background:#f9fafb;font-weight:bold;">تەمەن:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${installment.age || '-'}</td>
+              </tr>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;background:#f9fafb;font-weight:bold;">ژمارە تەلەفۆن:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${installment.phoneNumber || '-'}</td>
+              </tr>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;background:#f9fafb;font-weight:bold;">ناونیشان:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${installment.address || '-'}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px;">
+            <thead>
+              <tr>
+                <th colspan="2" style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;font-weight:bold;">زانیاری قیست</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;width:30%;background:#f9fafb;font-weight:bold;">کۆی گشتی:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(totalAmount)}</td>
+              </tr>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;background:#f9fafb;font-weight:bold;">بڕی دراو:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(paidAmount)}</td>
+              </tr>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;background:#f9fafb;font-weight:bold;">بڕی ماوە:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(remainingAmount)}</td>
+              </tr>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;background:#f9fafb;font-weight:bold;">بەرواری داهاتوو:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${installment.nextPaymentDate ? new Date(installment.nextPaymentDate).toLocaleDateString('ku-IQ', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '-'}</td>
+              </tr>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;background:#f9fafb;font-weight:bold;">بەرواری کۆتایی پارەدان:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${installment.paymentHistory && installment.paymentHistory.length > 0 ? formatDate(installment.paymentHistory[installment.paymentHistory.length - 1].paymentDate) : '-'}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3 style="margin:20px 0 10px 0;font-size:16px;font-weight:bold;text-align:center;">لیستی پارەدانەکان</h3>
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr>
+                <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;">#</th>
+                <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;">بەروار</th>
+                <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;">بڕی پارە</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${paymentRowsHtml}
+            </tbody>
+          </table>
+
+          <div style="margin-top:40px;text-align:center;font-size:12px;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:20px;">
+            <p>ئەم راپۆرتە لەلایەن شا سیستەم دروستکراوە</p>
+          </div>
+        </div>
+      `
+
+      iframe = document.createElement("iframe")
+      iframe.style.position = "fixed"
+      iframe.style.right = "0"
+      iframe.style.bottom = "0"
+      iframe.style.width = "0"
+      iframe.style.height = "0"
+      iframe.style.border = "0"
+      document.body.appendChild(iframe)
+
+      const iframeDoc = iframe.contentDocument
+      if (!iframeDoc) {
+        throw new Error("iframe document is not available")
+      }
+
+      iframeDoc.open()
+      iframeDoc.write(`<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#fff;">${patientHtml}</body></html>`)
+      iframeDoc.close()
+
+      await new Promise((resolve) => setTimeout(resolve, 120))
+
+      const reportElement = iframeDoc.getElementById("pdf-patient")
+      if (!reportElement) {
+        throw new Error("report element is missing")
+      }
+
+      const canvas = await html2canvas(reportElement, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+      })
+
+      const image = canvas.toDataURL("image/jpeg", 0.95)
+      const doc = new jsPDF("p", "mm", "a4")
+
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      const margin = 10
+      const width = pageWidth - margin * 2
+      const ratio = width / canvas.width
+      const imageHeight = canvas.height * ratio
+
+      let remaining = imageHeight
+      let y = margin
+
+      doc.addImage(image, "JPEG", margin, y, width, imageHeight, undefined, "MEDIUM")
+      remaining -= pageHeight - margin * 2
+
+      while (remaining > 0) {
+        doc.addPage()
+        y = margin - (imageHeight - remaining)
+        doc.addImage(image, "JPEG", margin, y, width, imageHeight, undefined, "MEDIUM")
+        remaining -= pageHeight - margin * 2
+      }
+
+      const fileName = `patient-${installment.patientName.replace(/\s+/g, '_')}-${new Date().toISOString().slice(0, 10)}.pdf`
+      doc.save(fileName)
+      toast.success("PDF بە سەرکەوتوویی دابەزێنرا")
+    } catch (error) {
+      console.error("PDF export error:", error)
+      const errorMessage = error instanceof Error ? error.message : "unknown"
+      toast.error(`هەڵە لە دروستکردنی PDF: ${errorMessage}`)
+    } finally {
+      if (iframe && document.body.contains(iframe)) {
+        document.body.removeChild(iframe)
+      }
+    }
+  }
+
   const syncPaymentAmounts = async () => {
     if (!selectedInstallment) return;
     setSyncingPayment(true);
@@ -644,119 +823,145 @@ function ReportsPageContent() {
                 `,
               )
               .join("")
-          : filteredInstallmentsByPatient
-              .map((item, index) => {
-                const getStatusLabel = (status: string) => {
-                  switch (status) {
-                    case 'Paid': return 'دراوە'
-                    case 'Pending': return 'چاوەڕوانکراوە'
-                    case 'Overdue': return 'دواکەوتووە'
-                    default: return status
-                  }
-                }
-                const paymentCount = item.paymentHistory ? item.paymentHistory.length : 0
-                return `
-                  <tr>
-                    <td style="border:1px solid #d1d5db;padding:8px;text-align:center;">${index + 1}</td>
-                    <td style="border:1px solid #d1d5db;padding:8px;">${formatDate(item.createdAt)}</td>
-                    <td style="border:1px solid #d1d5db;padding:8px;">${item.patientName}</td>
-                    <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(item.totalAmount)}</td>
-                    <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(item.paidAmount)}</td>
-                    <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(item.remainingAmount)}</td>
-                    <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(item.installmentValue)}</td>
-                    <td style="border:1px solid #d1d5db;padding:8px;">${paymentCount > 0 ? `${paymentCount} پارەدان` : '-'}</td>
-                    <td style="border:1px solid #d1d5db;padding:8px;">${item.nextPaymentDate ? formatDate(item.nextPaymentDate) : '-'}</td>
-                    <td style="border:1px solid #d1d5db;padding:8px;">${getStatusLabel(item.status)}</td>
-                  </tr>
-                `
-              })
-              .join("")
+          : ''
 
       let paymentHistoryTableHtml = ''
       if (activeReport === "installments") {
-        const installmentsWithHistory = filteredInstallmentsByPatient.filter(item => item.paymentHistory && item.paymentHistory.length > 0)
-        
-        if (installmentsWithHistory.length > 0) {
-          paymentHistoryTableHtml = `
-            <div style="margin-top:30px;">
-              <h2 style="margin:0 0 14px 0;font-size:18px;font-weight:bold;">خشتەی مێژووی پارەدان بە بەروار</h2>
-              <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                <thead>
-                  <tr>
-                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بەرواری پارەدان</th>
-                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ناوی نەخۆش</th>
-                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بڕی پارە</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${installmentsWithHistory.flatMap(item => 
-                    item.paymentHistory!.map(ph => `
+        paymentHistoryTableHtml = filteredInstallmentsByPatient.map((item, index) => {
+          const totalAmount = Number(item.totalAmount || 0)
+          const paidAmount = Number(item.paidAmount || 0)
+          const remainingAmount = Number(item.remainingAmount || 0)
+
+          const paymentRowsHtml = item.paymentHistory && item.paymentHistory.length > 0
+            ? item.paymentHistory.map((ph, i) => `
+                <tr>
+                  <td style="border:1px solid #d1d5db;padding:8px;text-align:center;">${i + 1}</td>
+                  <td style="border:1px solid #d1d5db;padding:8px;">${formatDate(ph.paymentDate)}</td>
+                  <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(ph.amountPaid)}</td>
+                </tr>
+              `).join('')
+            : `<tr><td colspan="3" style="border:1px solid #d1d5db;padding:8px;text-align:center;">هیچ پارەدانێک تۆمار نەکراوە</td></tr>`
+
+          return `
+            <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:40px;">
+              <tr>
+                <td style="padding:0;">
+                  <h3 style="margin:0 0 20px 0;font-size:18px;font-weight:bold;color:#0f172a;border-bottom:2px solid #9ca3af;padding-bottom:10px;">نەخۆش #${index + 1}: ${item.patientName}</h3>
+
+                  <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px;">
+                    <thead>
                       <tr>
-                        <td style="border:1px solid #d1d5db;padding:8px;">${formatDate(ph.paymentDate)}</td>
-                        <td style="border:1px solid #d1d5db;padding:8px;">${item.patientName}</td>
-                        <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(ph.amountPaid)}</td>
+                        <th colspan="2" style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;font-weight:bold;">زانیاری نەخۆش</th>
                       </tr>
-                    `)
-                  ).join('')}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style="border:1px solid #d1d5db;padding:8px;width:30%;background:#f9fafb;font-weight:bold;">ناوی نەخۆش:</td>
+                        <td style="border:1px solid #d1d5db;padding:8px;">${item.patientName}</td>
+                      </tr>
+                      <tr>
+                        <td style="border:1px solid #d1d5db;padding:8px;background:#f9fafb;font-weight:bold;">تەمەن:</td>
+                        <td style="border:1px solid #d1d5db;padding:8px;">${item.age || '-'}</td>
+                      </tr>
+                      <tr>
+                        <td style="border:1px solid #d1d5db;padding:8px;background:#f9fafb;font-weight:bold;">ژمارە تەلەفۆن:</td>
+                        <td style="border:1px solid #d1d5db;padding:8px;">${item.phoneNumber || '-'}</td>
+                      </tr>
+                      <tr>
+                        <td style="border:1px solid #d1d5db;padding:8px;background:#f9fafb;font-weight:bold;">ناونیشان:</td>
+                        <td style="border:1px solid #d1d5db;padding:8px;">${item.address || '-'}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px;">
+                    <thead>
+                      <tr>
+                        <th colspan="2" style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;font-weight:bold;">زانیاری قیست</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style="border:1px solid #d1d5db;padding:8px;width:30%;background:#f9fafb;font-weight:bold;">کۆی گشتی:</td>
+                        <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(totalAmount)}</td>
+                      </tr>
+                      <tr>
+                        <td style="border:1px solid #d1d5db;padding:8px;background:#f9fafb;font-weight:bold;">بڕی دراو:</td>
+                        <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(paidAmount)}</td>
+                      </tr>
+                      <tr>
+                        <td style="border:1px solid #d1d5db;padding:8px;background:#f9fafb;font-weight:bold;">بڕی ماوە:</td>
+                        <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(remainingAmount)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <h4 style="margin:20px 0 10px 0;font-size:16px;font-weight:bold;text-align:center;">لیستی پارەدانەکان</h4>
+                  <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                    <thead>
+                      <tr>
+                        <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;">#</th>
+                        <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;">بەروار</th>
+                        <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;">بڕی پارە</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${paymentRowsHtml}
+                    </tbody>
+                  </table>
+                </td>
+              </tr>
+            </table>
           `
-        }
+        }).join('')
       }
 
       const reportHtml = `
         <div id="pdf-report" style="direction:rtl;font-family:Arial,sans-serif;background:#ffffff;color:#0f172a;padding:20px;width:900px;">
           <h1 style="margin:0 0 6px 0;text-align:center;font-size:24px;">${reportTitle}</h1>
           <p style="margin:0 0 14px 0;text-align:center;color:#475569;">بەرواری دروستکردن: ${new Date().toLocaleDateString("en-CA")}</p>
-          <p style="margin:0 0 14px 0;font-weight:700;">کۆی گشتی: ${formatMoney(total)}</p>
+          ${activeReport !== "installments" ? `<p style="margin:0 0 14px 0;font-weight:700;">کۆی گشتی: ${formatMoney(total)}</p>` : ''}
 
-          <table style="width:100%;border-collapse:collapse;font-size:13px;">
-            <thead>
-              <tr>
-                ${activeReport === "employees" ? '' : '<th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">#</th>'}
-                ${activeReport === "employees" ? '' : '<th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بەروار</th>'}
-                ${activeReport === "expenses" ? `
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ناونیشان</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">جۆر</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">شێوازی پارەدان</th>
-                ` : activeReport === "employees" ? `
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">#</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ناوی کارمەند</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">پلە</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ژمارە تەلەفۆن</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">مووچەی بنەڕەتی</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">کۆی پێشەکییەکان</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">تێبینی</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بڕی ماوەی مووچە</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">مانگ</th>
-                ` : activeReport === "sales" ? `
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ناوی کاڵا</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">پۆل</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">نرخی فرۆشتن</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بڕی فرۆشتن</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">کۆی فرۆشتن</th>
-                ` : activeReport === "payment-history" ? `
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ناوی نەخۆش</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ژمارەی قیست</th>
-                ` : `
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ناوی نەخۆش</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">کۆی گشتی</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بڕی دراو</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بڕی ماوە</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">قیستی مانگانە</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بەرواری پارەدان</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بەرواری داهاتوو</th>
-                  <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بارودۆخ</th>
-                `}
-                ${activeReport === "payment-history" ? `<th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بڕی پارە</th>` : `<th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بڕی پارە</th>`}
-              </tr>
-            </thead>
-            <tbody>
-              ${rowsHtml}
-            </tbody>
-          </table>
-          ${paymentHistoryTableHtml}
+          ${activeReport === "installments" ? `
+            ${paymentHistoryTableHtml}
+          ` : `
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+              <thead>
+                <tr>
+                  ${activeReport === "employees" ? '' : '<th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">#</th>'}
+                  ${activeReport === "employees" ? '' : '<th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بەروار</th>'}
+                  ${activeReport === "expenses" ? `
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ناونیشان</th>
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">جۆر</th>
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">شێوازی پارەدان</th>
+                  ` : activeReport === "employees" ? `
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">#</th>
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ناوی کارمەند</th>
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">پلە</th>
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ژمارە تەلەفۆن</th>
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">مووچەی بنەڕەتی</th>
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">کۆی پێشەکییەکان</th>
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">تێبینی</th>
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بڕی ماوەی مووچە</th>
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">مانگ</th>
+                  ` : activeReport === "sales" ? `
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ناوی کاڵا</th>
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">پۆل</th>
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">نرخی فرۆشتن</th>
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بڕی فرۆشتن</th>
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">کۆی فرۆشتن</th>
+                  ` : activeReport === "payment-history" ? `
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ناوی نەخۆش</th>
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ژمارەی قیست</th>
+                  ` : ''}
+                  ${activeReport === "payment-history" ? `<th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بڕی پارە</th>` : ''}
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+            </table>
+          `}
         </div>
       `
 
@@ -1241,6 +1446,7 @@ function ReportsPageContent() {
                       <TableCell className="text-xs font-semibold text-foreground/80">
                         {item.paymentHistory && item.paymentHistory.length > 0 ? (
                           <div className="flex items-center gap-2">
+                         
                             <Button
                               variant="ghost"
                               size="sm"

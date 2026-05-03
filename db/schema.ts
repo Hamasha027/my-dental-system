@@ -111,6 +111,9 @@ export const installmentsTable = pgTable('installments', {
   installmentValue: numeric('installment_value', { precision: 10, scale: 2 }).notNull(),
   nextPaymentDate: date('next_payment_date'),
   status: installmentStatusEnum('status').default('Pending'),
+  age: text('age'),
+  phoneNumber: text('phone_number'),
+  address: text('address'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 

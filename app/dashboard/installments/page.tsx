@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { toast } from 'sonner';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import {
   Table,
   TableBody,
@@ -13,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { Loader2, Wallet, Calendar, Trash2, AlertCircle, Plus, DollarSign, RotateCcw, Search } from 'lucide-react';
+import { Loader2, Wallet, Calendar, Trash2, AlertCircle, Plus, DollarSign, RotateCcw, Search, Printer } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -33,6 +35,13 @@ interface Installment {
   nextPaymentDate: string | null;
   status: 'Paid' | 'Pending' | 'Overdue';
   createdAt: string;
+  paymentHistory?: Array<{
+    paymentDate: string;
+    amountPaid: string;
+  }>;
+  age?: string;
+  phoneNumber?: string;
+  address?: string;
 }
 
 interface FormData {
@@ -41,6 +50,9 @@ interface FormData {
   paidAmount: string;
   installmentValue: string;
   nextPaymentDate: string;
+  age?: string;
+  phoneNumber?: string;
+  address?: string;
 }
 
 interface PaymentFormData {
@@ -101,6 +113,9 @@ export default function InstallmentsPage() {
     paidAmount: '0',
     installmentValue: '',
     nextPaymentDate: '',
+    age: '',
+    phoneNumber: '',
+    address: '',
   });
   const [paymentFormData, setPaymentFormData] = useState<PaymentFormData>({
     amountPaid: '',
@@ -174,6 +189,9 @@ export default function InstallmentsPage() {
           remainingAmount,
           installmentValue,
           nextPaymentDate: formData.nextPaymentDate || null,
+          age: formData.age,
+          phoneNumber: formData.phoneNumber,
+          address: formData.address,
         }),
       });
 
@@ -190,6 +208,9 @@ export default function InstallmentsPage() {
         paidAmount: '0',
         installmentValue: '',
         nextPaymentDate: '',
+        age: '',
+        phoneNumber: '',
+        address: '',
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'هەڵەیەک ڕویدا');
@@ -283,6 +304,166 @@ export default function InstallmentsPage() {
       setPaymentFormData(prev => ({ ...prev, [name]: value }));
     }
   };
+
+  const printPatient = async (installment: Installment) => {
+    let iframe: HTMLIFrameElement | null = null
+    try {
+      const totalAmount = Number(installment.totalAmount || 0)
+      const paidAmount = Number(installment.paidAmount || 0)
+      const remainingAmount = Number(installment.remainingAmount || 0)
+
+      const formatDate = (dateStr: string) => {
+        if (!dateStr) return '-'
+        return new Date(dateStr).toLocaleDateString('ku-IQ', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        })
+      }
+
+      const formatMoney = (amount: number) => {
+        return `${amount.toLocaleString('en-US')} د.ع`
+      }
+
+      const paymentRowsHtml = installment.paymentHistory && installment.paymentHistory.length > 0
+        ? installment.paymentHistory.map((ph: any, i: number) => `
+            <tr>
+              <td style="border:1px solid #d1d5db;padding:8px;text-align:center;">${i + 1}</td>
+              <td style="border:1px solid #d1d5db;padding:8px;">${formatDate(ph.paymentDate)}</td>
+              <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(Number(ph.amountPaid))}</td>
+            </tr>
+          `).join('')
+        : `<tr><td colspan="3" style="border:1px solid #d1d5db;padding:8px;text-align:center;">هیچ پارەدانێک تۆمار نەکراوە</td></tr>`
+
+      const patientHtml = `
+        <div id="pdf-patient" style="direction:rtl;font-family:Arial,sans-serif;background:#ffffff;color:#0f172a;padding:20px;width:900px;">
+          <h1 style="margin:0 0 6px 0;text-align:center;font-size:24px;color:#0f172a;">شا سیستەم - زانیاری قیستی نەخۆش</h1>
+          <p style="margin:0 0 20px 0;text-align:center;color:#475569;font-size:14px;">بەرواری پرێنت: ${new Date().toLocaleDateString("ku-IQ")}</p>
+
+          <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px;">
+            <thead>
+              <tr>
+                <th colspan="2" style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;font-weight:bold;">زانیاری نەخۆش</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;width:30%;background:#f9fafb;font-weight:bold;">ناوی نەخۆش:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${installment.patientName}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px;">
+            <thead>
+              <tr>
+                <th colspan="2" style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;font-weight:bold;">زانیاری قیست</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;width:30%;background:#f9fafb;font-weight:bold;">کۆی گشتی:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(totalAmount)}</td>
+              </tr>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;background:#f9fafb;font-weight:bold;">بڕی دراو:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(paidAmount)}</td>
+              </tr>
+              <tr>
+                <td style="border:1px solid #d1d5db;padding:8px;background:#f9fafb;font-weight:bold;">بڕی ماوە:</td>
+                <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(remainingAmount)}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3 style="margin:20px 0 10px 0;font-size:16px;font-weight:bold;text-align:center;">لیستی پارەدانەکان</h3>
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr>
+                <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;">#</th>
+                <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;">بەروار</th>
+                <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;text-align:center;">بڕی پارە</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${paymentRowsHtml}
+            </tbody>
+          </table>
+
+          <div style="margin-top:40px;text-align:center;font-size:12px;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:20px;">
+            <p>ئەم راپۆرتە لەلایەن شا سیستەم دروستکراوە</p>
+          </div>
+        </div>
+      `
+
+      iframe = document.createElement("iframe")
+      iframe.style.position = "fixed"
+      iframe.style.right = "0"
+      iframe.style.bottom = "0"
+      iframe.style.width = "0"
+      iframe.style.height = "0"
+      iframe.style.border = "0"
+      document.body.appendChild(iframe)
+
+      const iframeDoc = iframe.contentDocument
+      if (!iframeDoc) {
+        throw new Error("iframe document is not available")
+      }
+
+      iframeDoc.open()
+      iframeDoc.write(`<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#fff;">${patientHtml}</body></html>`)
+      iframeDoc.close()
+
+      await new Promise((resolve) => setTimeout(resolve, 120))
+
+      const reportElement = iframeDoc.getElementById("pdf-patient")
+      if (!reportElement) {
+        throw new Error("report element is missing")
+      }
+
+      const canvas = await html2canvas(reportElement, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+      })
+
+      const image = canvas.toDataURL("image/jpeg", 0.95)
+      const doc = new jsPDF("p", "mm", "a4")
+
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+
+      const margin = 10
+      const width = pageWidth - margin * 2
+      const ratio = width / canvas.width
+      const imageHeight = canvas.height * ratio
+
+      let remaining = imageHeight
+      let y = margin
+
+      doc.addImage(image, "JPEG", margin, y, width, imageHeight, undefined, "MEDIUM")
+      remaining -= pageHeight - margin * 2
+
+      while (remaining > 0) {
+        doc.addPage()
+        y = margin - (imageHeight - remaining)
+        doc.addImage(image, "JPEG", margin, y, width, imageHeight, undefined, "MEDIUM")
+        remaining -= pageHeight - margin * 2
+      }
+
+      const fileName = `patient-${installment.patientName.replace(/\s+/g, '_')}-${new Date().toISOString().slice(0, 10)}.pdf`
+      doc.save(fileName)
+      toast.success("PDF بە سەرکەوتوویی دابەزێنرا")
+    } catch (error) {
+      console.error("PDF export error:", error)
+      const errorMessage = error instanceof Error ? error.message : "unknown"
+      toast.error(`هەڵە لە دروستکردنی PDF: ${errorMessage}`)
+    } finally {
+      if (iframe && document.body.contains(iframe)) {
+        document.body.removeChild(iframe)
+      }
+    }
+  }
 
   if (loading) {
     return (
@@ -409,6 +590,9 @@ export default function InstallmentsPage() {
           <TableHeader className="bg-primary/5 border-b border-border/40">
             <TableRow className="hover:bg-primary/2 transition-colors">
               <TableHead className="text-right text-primary font-bold">ناوی نەخۆش</TableHead>
+              <TableHead className="text-right text-primary font-bold">تەمەن</TableHead>
+              <TableHead className="text-right text-primary font-bold">ژمارە تەلەفۆن</TableHead>
+              <TableHead className="text-right text-primary font-bold">ناونیشان</TableHead>
               <TableHead className="text-right text-primary font-bold">کۆی گشتی</TableHead>
               <TableHead className="text-right text-primary font-bold">بڕی دراو</TableHead>
               <TableHead className="text-right text-primary font-bold">بڕی ماوە</TableHead>
@@ -421,7 +605,7 @@ export default function InstallmentsPage() {
           <TableBody>
             {paginatedInstallments.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-12 text-muted-foreground hover:bg-transparent">
+                <TableCell colSpan={11} className="text-center py-12 text-muted-foreground hover:bg-transparent">
                   <div className="flex flex-col items-center gap-2">
                     <Wallet className="w-12 h-12 opacity-30 mx-auto" />
                     <span className="text-lg">{searchTerm ? 'هیچ قیستێک نەدۆزرایەوە !' : 'هیچ قیست نیە'}</span>
@@ -430,15 +614,18 @@ export default function InstallmentsPage() {
               </TableRow>
             ) : (
               paginatedInstallments.map((installment, index) => (
-                <TableRow 
+                <TableRow
                   key={installment.id}
                   className={`transition-all duration-200 border-b border-gray-100 dark:border-gray-800 ${
-                    index % 2 === 0 
-                      ? 'bg-white dark:bg-slate-950' 
+                    index % 2 === 0
+                      ? 'bg-white dark:bg-slate-950'
                       : 'bg-primary/2 dark:bg-slate-900/30'
                   } hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors`}
                 >
                   <TableCell className="text-xs font-semibold text-foreground">{installment.patientName}</TableCell>
+                  <TableCell className="text-xs font-semibold text-foreground/80">{installment.age || '-'}</TableCell>
+                  <TableCell className="text-xs font-semibold text-foreground/80">{installment.phoneNumber || '-'}</TableCell>
+                  <TableCell className="text-xs font-semibold text-foreground/80">{installment.address || '-'}</TableCell>
                   <TableCell className="text-xs font-semibold text-foreground/80">
                     {parseFloat(installment.totalAmount).toLocaleString('en-US')} IQD
                   </TableCell>
@@ -520,6 +707,9 @@ export default function InstallmentsPage() {
             paidAmount: '0',
             installmentValue: '',
             nextPaymentDate: '',
+            age: '',
+            phoneNumber: '',
+            address: '',
           });
         }
       }}>
@@ -542,6 +732,39 @@ export default function InstallmentsPage() {
                   onChange={handleInputChange}
                   placeholder="ناوی نەخۆش"
                   required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-3">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 sm:col-span-1">تەمەن</label>
+                <Input
+                  className="sm:col-span-2"
+                  name="age"
+                  value={formData.age}
+                  onChange={handleInputChange}
+                  placeholder="تەمەن"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-3">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 sm:col-span-1">ژمارە تەلەفۆن</label>
+                <Input
+                  className="sm:col-span-2"
+                  name="phoneNumber"
+                  value={formData.phoneNumber}
+                  onChange={handleInputChange}
+                  placeholder="ژمارە تەلەفۆن"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-3">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 sm:col-span-1">ناونیشان</label>
+                <Input
+                  className="sm:col-span-2"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  placeholder="ناونیشان"
                 />
               </div>
 
