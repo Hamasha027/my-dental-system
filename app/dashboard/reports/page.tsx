@@ -202,7 +202,7 @@ function ReportsPageContent() {
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([])
   const [loading, setLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
-  const [period, setPeriod] = useState<PeriodType>("today")
+  const [period, setPeriod] = useState<PeriodType>(activeReport === "installments" ? "all" : "today")
   const [customDate, setCustomDate] = useState(new Date().toISOString().slice(0, 10))
   const [paymentHistoryModalOpen, setPaymentHistoryModalOpen] = useState(false)
   const [selectedInstallment, setSelectedInstallment] = useState<Installment | null>(null)
@@ -1213,7 +1213,7 @@ function ReportsPageContent() {
 
       <div>
       {activeReport === "expenses" ? (
-        <div className="rounded-xl border border-border/40 shadow-lg overflow-hidden bg-card">
+        <div className="rounded-xl border border-border/90 overflow-hidden bg-card">
           <div className="overflow-x-auto">
             <Table>
             <TableHeader className="bg-primary/5 border-b border-border/40">
@@ -1269,7 +1269,7 @@ function ReportsPageContent() {
       ) : null}
 
       {activeReport === "employees" ? (
-        <div className="rounded-xl border border-border/40 shadow-lg overflow-hidden bg-card">
+        <div className="rounded-xl border border-border/90 overflow-hidden bg-card">
           <div className="overflow-x-auto">
             <Table>
             <TableHeader className="bg-primary/5 border-b border-border/40">
@@ -1352,7 +1352,7 @@ function ReportsPageContent() {
       ) : null}
 
       {activeReport === "installments" ? (
-        <div className="rounded-xl border border-border/40 shadow-lg overflow-hidden bg-card">
+        <div className="rounded-xl border border-border/90 overflow-hidden bg-card">
           <div className="p-4 border-b border-border/40 bg-primary/5">
             <div className="flex items-center gap-4">
               <label className="text-sm font-semibold text-foreground">فلتەری نەخۆش:</label>
@@ -1546,7 +1546,7 @@ function ReportsPageContent() {
       </Dialog>
 
       {activeReport === "sales" ? (
-        <div className="rounded-xl border border-border/40 shadow-lg overflow-hidden bg-card">
+        <div className="rounded-xl border border-border/90 overflow-hidden bg-card">
           <div className="overflow-x-auto">
             <Table>
             <TableHeader className="bg-primary/5 border-b border-border/40">
@@ -1614,7 +1614,7 @@ function ReportsPageContent() {
       ) : null}
 
       {activeReport === "payment-history" ? (
-        <div className="rounded-xl border border-border/40 shadow-lg overflow-hidden bg-card">
+        <div className="rounded-xl border border-border/90 overflow-hidden bg-card">
           <div className="overflow-x-auto">
             <Table>
             <TableHeader className="bg-primary/5 border-b border-border/40">

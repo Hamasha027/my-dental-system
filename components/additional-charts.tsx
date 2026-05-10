@@ -69,8 +69,8 @@ export const AdditionalCharts = memo(function AdditionalCharts() {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border-0 shadow-xl bg-white dark:bg-slate-900">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <Card className="border-0 bg-white dark:bg-slate-900">
           <CardHeader>
             <CardTitle className="text-slate-900 dark:text-white">دانیشتن بەپێی جۆری چارەسەر</CardTitle>
           </CardHeader>
@@ -80,7 +80,7 @@ export const AdditionalCharts = memo(function AdditionalCharts() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-0 shadow-xl bg-white dark:bg-slate-900">
+        <Card className="border-0 s bg-white dark:bg-slate-900">
           <CardHeader>
             <CardTitle className="text-slate-900 dark:text-white">بەشی داهات</CardTitle>
           </CardHeader>
@@ -96,7 +96,7 @@ export const AdditionalCharts = memo(function AdditionalCharts() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card className="border-0 shadow-xl bg-white dark:bg-slate-900">
+      <Card className="border-0 bg-white dark:bg-slate-900">
         <CardHeader>
           <CardTitle className="text-slate-900 dark:text-white">دانیشتن بەپێی جۆری چارەسەر</CardTitle>
         </CardHeader>
@@ -142,7 +142,7 @@ export const AdditionalCharts = memo(function AdditionalCharts() {
         </CardContent>
       </Card>
 
-      <Card className="border-0 shadow-xl bg-white dark:bg-slate-900">
+      <Card className="border-0 bg-white dark:bg-slate-900">
         <CardHeader>
           <CardTitle className="text-slate-900 dark:text-white">بەشی داهات</CardTitle>
         </CardHeader>

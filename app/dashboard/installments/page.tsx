@@ -15,6 +15,13 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Loader2, Wallet, Calendar, Trash2, AlertCircle, Plus, DollarSign, RotateCcw, Search, Printer } from 'lucide-react';
 import {
   Dialog,
@@ -105,6 +112,7 @@ export default function InstallmentsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'Paid' | 'Pending' | 'Overdue'>('all');
   const [paginationPage, setPaginationPage] = useState(1);
   const [paginationPageSize, setPaginationPageSize] = useState(10);
   const [formData, setFormData] = useState<FormData>({
@@ -126,12 +134,13 @@ export default function InstallmentsPage() {
   const filteredInstallments = useMemo(() => {
     const searchLower = searchTerm.toLowerCase();
     return installments.filter((installment) => {
-      return (
+      const matchesSearch = 
         installment.patientName.toLowerCase().includes(searchLower) ||
-        installment.status.toLowerCase().includes(searchLower)
-      );
+        installment.status.toLowerCase().includes(searchLower);
+      const matchesStatus = statusFilter === 'all' || installment.status === statusFilter;
+      return matchesSearch && matchesStatus;
     });
-  }, [installments, searchTerm]);
+  }, [installments, searchTerm, statusFilter]);
 
   const totalPages = useMemo(() => Math.ceil(filteredInstallments.length / paginationPageSize) || 1, [filteredInstallments.length, paginationPageSize]);
   const startIndex = useMemo(() => (paginationPage - 1) * paginationPageSize, [paginationPage, paginationPageSize]);
@@ -519,9 +528,7 @@ export default function InstallmentsPage() {
 
   return (
     <div dir="rtl" className="space-y-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">بەڕێوەبردنی قیستەکان</h1>
-      </div>
+
 
       {error && (
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive flex items-start gap-3">
@@ -588,26 +595,39 @@ export default function InstallmentsPage() {
       {/* Search and Add Button */}
       <div className="flex flex-row items-center justify-between gap-3">
         <div className="flex-1 relative">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-          <Input
+          <Search className="absolute opacity-60 right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground  pointer-events-none" />
+          <Input 
             type="text"
             placeholder="گەڕان بە ناوی نەخۆش یان بارودۆخ"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-lg border-border/90 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 pr-10 h-10"
+            className="w-full rounded-lg opacity-60 border border-border/90 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 pr-10 h-10"
           />
         </div>
-        <Button 
-          onClick={() => setOpenAddDialog(true)}
-          className="bg-primary hover:shadow-lg hover:shadow-primary/30 active:scale-95 active:shadow-inner gap-2 text-white font-semibold px-4 py-2 whitespace-nowrap transition-all duration-150"
-        >
-          پلانێکی نوێ
-          <Plus className="w-4 h-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Select value={statusFilter} onValueChange={(value: 'all' | 'Paid' | 'Pending' | 'Overdue') => setStatusFilter(value)}>
+            <SelectTrigger className="w-[140px] rounded-lg border border-border/90 py-2 px-3" size="default">
+              <SelectValue placeholder="فلتەری بارودۆخ" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">هەموو</SelectItem>
+              <SelectItem value="Paid">پارەیان داوە</SelectItem>
+              <SelectItem value="Pending">چاوەڕوانکراو</SelectItem>
+              <SelectItem value="Overdue">دواکەوتوو</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button 
+            onClick={() => setOpenAddDialog(true)}
+            className="bg-primary hover:shadow-lg hover:shadow-primary/30 active:scale-95 active:shadow-inner gap-2 text-white font-semibold px-4 py-4.5 whitespace-nowrap transition-all duration-150"
+          >
+            پلانێکی نوێ
+            <Plus className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-border/40 shadow-lg overflow-hidden bg-card">
+      <div className="rounded-xl border border-border/90 overflow-hidden bg-card">
         <Table>
           <TableHeader className="bg-primary/5 border-b border-border/40">
             <TableRow className="hover:bg-primary/2 transition-colors">

@@ -99,7 +99,7 @@ export default function SellerPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [timePeriod, setTimePeriod] = useState<'month' | 'week' | 'today' | 'all' | 'custom'>('month');
+  const [timePeriod, setTimePeriod] = useState<'month' | 'week' | 'today' | 'all' | 'custom'>('today');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [paginationPage, setPaginationPage] = useState(1);
@@ -452,7 +452,7 @@ export default function SellerPage() {
       </div>
 
       {/* Sales Table */}
-      <div className="rounded-xl border border-border/40 shadow-lg overflow-hidden bg-card">
+      <div className="rounded-xl border border-border/90 overflow-hidden bg-card">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-primary/5 border-b border-border/40">

@@ -446,7 +446,7 @@ function StaffPageContent() {
       </div>
 
       {/* Staff Table */}
-      <div className="rounded-xl border border-border/40 shadow-lg overflow-hidden bg-card">
+      <div className="rounded-xl border border-border/90 overflow-hidden bg-card">
         <div className="overflow-x-auto">
         <Table>
             <TableHeader className="bg-primary/5 border-b border-border/40">

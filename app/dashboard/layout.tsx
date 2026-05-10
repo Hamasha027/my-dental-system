@@ -9,7 +9,7 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   return (
-    <div dir="rtl">
+    <div dir="rtl" className="no-scrollbar">
       <UserProvider>
         <SidebarProvider
           style={
@@ -22,9 +22,9 @@ export default function DashboardLayout({
           <AppSidebar variant="inset" />
           <SidebarInset>
             <SiteHeader />
-            <div className="flex flex-1 flex-col bg-background overflow-y-auto">
-              <div className="@container/main flex flex-1 flex-col gap-2 overflow-y-auto">
-                <div className="flex flex-col gap-6 py-6 md:gap-8 md:py-8 px-4 lg:px-8 overflow-y-auto">
+            <div className="flex flex-1 flex-col bg-background overflow-y-auto no-scrollbar">
+              <div className="@container/main flex flex-1 flex-col gap-2 overflow-y-auto no-scrollbar">
+                <div className="flex flex-col gap-6 pt-20 px-6 md:gap-8 md:pt-20 md:px-8 overflow-y-auto no-scrollbar">
                   {children}
                 </div>
               </div>

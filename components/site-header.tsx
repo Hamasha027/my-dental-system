@@ -24,7 +24,7 @@ export function SiteHeader() {
   const pageTitle = pageNames[pathname] || 'کارمەندەکان'
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between gap-2 border-b border-border/40 bg-background backdrop-blur-sm transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-16">
+    <header className="fixed top-0 right-0 left-0 z-40 flex h-16 shrink-0 items-center justify-between gap-2 border-b border-border/40 bg-background backdrop-blur-sm transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-16">
       <div className="flex items-center gap-1 px-3 sm:px-4 lg:gap-2 lg:px-6">
         <SidebarTrigger className="-ml-1 h-8 w-8 sm:h-9 sm:w-9" />
         <Separator

@@ -98,7 +98,7 @@ export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [timePeriod, setTimePeriod] = useState<'month' | 'week' | 'today' | 'all' | 'custom'>('month');
+  const [timePeriod, setTimePeriod] = useState<'month' | 'week' | 'today' | 'all' | 'custom'>('today');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
@@ -451,13 +451,13 @@ export default function AppointmentsPage() {
       )}
   <div className="flex flex-row items-center justify-between gap-3">
         <div className="flex-1 relative">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <Search className="absolute opacity-60 border border-border/60  right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
           <Input
             type="text"
             placeholder="گەڕان"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-lg border-border/90 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 pr-10 h-10"
+            className="w-full opacity-60 rounded-lg border-border/60 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 pr-10 h-10"
           />
         </div>
         <Select value={timePeriod} onValueChange={(value: 'month' | 'week' | 'today' | 'all' | 'custom') => setTimePeriod(value)}>
@@ -497,7 +497,7 @@ export default function AppointmentsPage() {
             <Plus className="w-4 h-4" />
         </Button>
       </div>
-      <div className="rounded-xl border border-border/40 shadow-lg overflow-hidden bg-card">
+      <div className="rounded-xl border border-border/90 overflow-hidden bg-card">
       
         <Table>
           <TableHeader className="bg-primary/5 border-b border-border/40">
