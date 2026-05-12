@@ -33,12 +33,18 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const period = searchParams.get('period') || 'month'
+    const fromParam = searchParams.get('from')
+    const toParam = searchParams.get('to')
 
     const now = new Date();
     let startDate: Date
     let endDate: Date
 
-    if (period === 'today') {
+    // Check if custom date range is provided
+    if (period === 'custom' && fromParam && toParam) {
+      startDate = new Date(fromParam + 'T00:00:00')
+      endDate = new Date(toParam + 'T23:59:59')
+    } else if (period === 'today') {
       startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
       endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
     } else if (period === 'week') {
@@ -56,6 +62,10 @@ export async function GET(request: Request) {
 
     const monthStartStr = toDateOnly(startDate)
     const nextMonthStartStr = toDateOnly(endDate)
+    
+    // Convert strings to Date objects for proper database comparison
+    const startDateObj = new Date(monthStartStr);
+    const endDateObj = new Date(nextMonthStartStr);
 
     // Get current period appointments
     const currentPeriodAppointments = await db
@@ -63,8 +73,8 @@ export async function GET(request: Request) {
       .from(appointmentsTable)
       .where(
         and(
-          gte(appointmentsTable.appointmentDate, monthStartStr),
-          lt(appointmentsTable.appointmentDate, nextMonthStartStr)
+          gte(appointmentsTable.appointmentDate, startDateObj),
+          lt(appointmentsTable.appointmentDate, endDateObj)
         )
       );
 
@@ -74,13 +84,15 @@ export async function GET(request: Request) {
     // Get previous month appointments
     const prevMonthStart = getMonthStart(new Date(now.getFullYear(), now.getMonth() - 1));
     const prevMonthStartStr = toDateOnly(prevMonthStart);
+    const prevMonthStartObj = new Date(prevMonthStartStr);
+    
     const prevMonthAppointments = await db
       .select()
       .from(appointmentsTable)
       .where(
         and(
-          gte(appointmentsTable.appointmentDate, prevMonthStartStr),
-          lt(appointmentsTable.appointmentDate, monthStartStr)
+          gte(appointmentsTable.appointmentDate, prevMonthStartObj),
+          lt(appointmentsTable.appointmentDate, startDateObj)
         )
       );
 
@@ -95,14 +107,14 @@ export async function GET(request: Request) {
       0
     );
 
-    // Get sales revenue
+    // Get sales revenue - use Date objects for proper database comparison
     const currentPeriodSales = await db
       .select()
       .from(salesTable)
       .where(
         and(
-          gte(salesTable.date, monthStartStr),
-          lt(salesTable.date, nextMonthStartStr)
+          gte(salesTable.date, startDateObj),
+          lt(salesTable.date, endDateObj)
         )
       );
 
@@ -113,14 +125,14 @@ export async function GET(request: Request) {
 
     const totalRevenue = currentPeriodRevenue + salesRevenue;
 
-    // Get expenses for current period (this month)
+    // Get expenses for current period - use Date objects for proper filtering
     const currentPeriodExpenses = await db
       .select()
       .from(expensesTable)
       .where(
         and(
-          gte(expensesTable.date, monthStartStr),
-          lt(expensesTable.date, nextMonthStartStr)
+          gte(expensesTable.date, startDateObj),
+          lt(expensesTable.date, endDateObj)
         )
       );
 
@@ -194,48 +206,149 @@ export async function GET(request: Request) {
       ? ((totalRevenue - prevMonthRevenue) / prevMonthRevenue) * 100
       : 0;
 
-    // Get last 6 months data for charts
+    // Generate chart data based on period
     const chartData = [];
-    for (let i = 5; i >= 0; i--) {
-      const chartDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const chartMonthStart = getMonthStart(chartDate);
-      const chartNextMonthStart = getNextMonthStart(chartDate);
-      const chartMonthStartStr = toDateOnly(chartMonthStart);
-      const chartNextMonthStartStr = toDateOnly(chartNextMonthStart);
-
-      const monthAppointments = await db
+    
+    if (period === 'today') {
+      // Show data for today only
+      const todayObj = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const dayAppointments = await db
         .select()
         .from(appointmentsTable)
-        .where(
-          and(
-            gte(appointmentsTable.appointmentDate, chartMonthStartStr),
-            lt(appointmentsTable.appointmentDate, chartNextMonthStartStr)
-          )
-        );
-
-      const monthSales = await db
+        .where(eq(appointmentsTable.appointmentDate, todayObj));
+      
+      const daySales = await db
         .select()
         .from(salesTable)
-        .where(
-          and(
-            gte(salesTable.date, chartMonthStartStr),
-            lt(salesTable.date, chartNextMonthStartStr)
-          )
-        );
+        .where(eq(salesTable.date, todayObj));
 
-      const monthRevenue = monthAppointments.reduce(
-        (sum, apt) => sum + Number(apt.money || 0), 
-        0
-      ) + monthSales.reduce(
-        (sum, sale) => sum + Number(sale.totalPrice || 0), 
-        0
-      );
+      const dayRevenue = dayAppointments.reduce((sum, apt) => sum + Number(apt.money || 0), 0) +
+                        daySales.reduce((sum, sale) => sum + Number(sale.totalPrice || 0), 0);
+
+      const monthNames = ['کانونی دوویم', 'شوبات', 'ئازار', 'نیسان', 'ئایار', 'حزیران', 'تەمموز', 'ئاب', 'ئەیلول', 'تشرینی یەکەم', 'تشرینی دوویم', 'کانونی یەکەم'];
+      const monthIndex = now.getMonth();
+      const dayOfMonth = now.getDate();
+      const year = now.getFullYear();
 
       chartData.push({
-        month: chartDate.toLocaleDateString('ku-IQ', { month: 'short' }),
-        revenue: Math.round(monthRevenue),
-        appointments: monthAppointments.length,
+        day: `${dayOfMonth} ${monthNames[monthIndex]} ${year}`,
+        revenue: Math.round(dayRevenue),
+        appointments: dayAppointments.length,
+        sales: daySales.length,
       });
+    } else if (period === 'week') {
+      // Show daily data for the week
+      const dayOfWeek = now.getDay();
+      const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+      const weekStart = new Date(now.getFullYear(), now.getMonth(), diff);
+      
+      const monthNames = ['کانونی دوویم', 'شوبات', 'ئازار', 'نیسان', 'ئایار', 'حزیران', 'تەمموز', 'ئاب', 'ئەیلول', 'تشرینی یەکەم', 'تشرینی دوویم', 'کانونی یەکەم'];
+      
+      for (let i = 0; i < 7; i++) {
+        const dayDate = new Date(weekStart);
+        dayDate.setDate(weekStart.getDate() + i);
+        
+        const dayAppointments = await db
+          .select()
+          .from(appointmentsTable)
+          .where(eq(appointmentsTable.appointmentDate, dayDate));
+        
+        const daySales = await db
+          .select()
+          .from(salesTable)
+          .where(eq(salesTable.date, dayDate));
+
+        const dayRevenue = dayAppointments.reduce((sum, apt) => sum + Number(apt.money || 0), 0) +
+                          daySales.reduce((sum, sale) => sum + Number(sale.totalPrice || 0), 0);
+
+        const monthIndex = dayDate.getMonth();
+        const dayOfMonth = dayDate.getDate();
+        const year = dayDate.getFullYear();
+
+        chartData.push({
+          day: `${dayOfMonth} ${monthNames[monthIndex]} ${year}`,
+          revenue: Math.round(dayRevenue),
+          appointments: dayAppointments.length,
+          sales: daySales.length,
+        });
+      }
+    } else if (period === 'month' || period === 'custom') {
+      // Show daily data for the month/custom range
+      const daysInPeriod = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      for (let i = 0; i < daysInPeriod && i < 31; i++) {
+        const dayDate = new Date(startDate);
+        dayDate.setDate(startDate.getDate() + i);
+        
+        const dayAppointments = await db
+          .select()
+          .from(appointmentsTable)
+          .where(eq(appointmentsTable.appointmentDate, dayDate));
+        
+        const daySales = await db
+          .select()
+          .from(salesTable)
+          .where(eq(salesTable.date, dayDate));
+
+        const dayRevenue = dayAppointments.reduce((sum, apt) => sum + Number(apt.money || 0), 0) +
+                          daySales.reduce((sum, sale) => sum + Number(sale.totalPrice || 0), 0);
+
+        if (dayRevenue > 0 || dayAppointments.length > 0) {
+          const monthNames = ['کانونی دوویم', 'شوبات', 'ئازار', 'نیسان', 'ئایار', 'حزیران', 'تەمموز', 'ئاب', 'ئەیلول', 'تشرینی یەکەم', 'تشرینی دوویم', 'کانونی یەکەم'];
+          const monthIndex = dayDate.getMonth();
+          const dayOfMonth = dayDate.getDate();
+          const year = dayDate.getFullYear();
+          
+          chartData.push({
+            day: `${dayOfMonth} ${monthNames[monthIndex]} ${year}`,
+            revenue: Math.round(dayRevenue),
+            appointments: dayAppointments.length,
+            sales: daySales.length,
+          });
+        }
+      }
+    } else if (period === 'all') {
+      // Show monthly data for all time
+      const monthNames = ['کانونی دوویم', 'شوبات', 'ئازار', 'نیسان', 'ئایار', 'حزیران', 'تەمموز', 'ئاب', 'ئەیلول', 'تشرینی یەکەم', 'تشرینی دوویم', 'کانونی یەکەم'];
+      
+      for (let i = 11; i >= 0; i--) {
+        const chartDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const chartMonthStart = getMonthStart(chartDate);
+        const chartNextMonthStart = getNextMonthStart(chartDate);
+
+        const monthAppointments = await db
+          .select()
+          .from(appointmentsTable)
+          .where(
+            and(
+              gte(appointmentsTable.appointmentDate, chartMonthStart),
+              lt(appointmentsTable.appointmentDate, chartNextMonthStart)
+            )
+          );
+
+        const monthSales = await db
+          .select()
+          .from(salesTable)
+          .where(
+            and(
+              gte(salesTable.date, chartMonthStart),
+              lt(salesTable.date, chartNextMonthStart)
+            )
+          );
+
+        const monthRevenue = monthAppointments.reduce((sum, apt) => sum + Number(apt.money || 0), 0) +
+                            monthSales.reduce((sum, sale) => sum + Number(sale.totalPrice || 0), 0);
+
+        const monthIndex = chartDate.getMonth();
+        const year = chartDate.getFullYear();
+
+        chartData.push({
+          month: `${monthNames[monthIndex]} ${year}`,
+          revenue: Math.round(monthRevenue),
+          appointments: monthAppointments.length,
+          sales: monthSales.length,
+        });
+      }
     }
 
     // Get recent appointments for table

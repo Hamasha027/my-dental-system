@@ -751,21 +751,42 @@ function ReportsPageContent() {
     }
   };
 
+  // Helper function to filter by selected month and year
+  const filterByMonthYear = (dateValue: string) => {
+    const current = new Date(dateValue)
+    if (Number.isNaN(current.getTime())) return false
+    return current.getFullYear() === selectedReportYear && current.getMonth() + 1 === selectedReportMonth
+  }
+
+  // Filter data by selected month and year
+  const monthYearFilteredExpenses = expenses.filter(row => filterByMonthYear(row.date))
+  const monthYearFilteredSales = sales.filter(row => filterByMonthYear(row.date))
+  const monthYearFilteredInstallments = installments.filter(row => filterByMonthYear(row.createdAt))
+  const monthYearFilteredPaymentHistory = paymentHistory.filter(row => filterByMonthYear(row.paymentDate))
+
   const savePdf = async () => {
     let iframe: HTMLIFrameElement | null = null
     setExporting(true)
     try {
+      // Use month/year filtered data
+      const pdfExpenses = monthYearFilteredExpenses
+      const pdfSales = monthYearFilteredSales
+      const pdfInstallments = monthYearFilteredInstallments
+      const pdfPaymentHistory = monthYearFilteredPaymentHistory
+
       const rowCount =
-        activeReport === "expenses" ? filteredExpenses.length :
+        activeReport === "expenses" ? pdfExpenses.length :
         activeReport === "employees" ? employeePayrollReports.length :
-        activeReport === "sales" ? filteredSales.length :
-        activeReport === "payment-history" ? filteredPaymentHistory.length :
-        filteredInstallmentsByPatient.length
+        activeReport === "sales" ? pdfSales.length :
+        activeReport === "payment-history" ? pdfPaymentHistory.length :
+        pdfInstallments.length
 
       if (rowCount === 0) {
         toast.error("هیچ داتایەک نییە بۆ دروستکردنی PDF")
         return
       }
+
+      const monthYearStr = `${String(selectedReportMonth).padStart(2, '0')}-${selectedReportYear}`
 
       const reportTitle =
         activeReport === "expenses"
@@ -778,11 +799,11 @@ function ReportsPageContent() {
           ? "شا سیستەم - مێژووی پارەدان"
           : "شا سیستەم - ڕاپۆرتی قیسەکان"
 
-      const total = activeReport === "expenses" ? expenseTotal : activeReport === "employees" ? employeesTotal : activeReport === "sales" ? salesTotal : activeReport === "payment-history" ? paymentHistoryTotal : filteredInstallmentsByPatient.reduce((sum, row) => sum + Number(row.remainingAmount || 0), 0)
+      const total = activeReport === "expenses" ? pdfExpenses.reduce((sum, row) => sum + Number(row.amount || 0), 0) : activeReport === "employees" ? employeePayrollReports.reduce((sum, report) => sum + report.remainingSalary, 0) : activeReport === "sales" ? pdfSales.reduce((sum, row) => sum + Number(row.profit || 0), 0) : activeReport === "payment-history" ? pdfPaymentHistory.reduce((sum, row) => sum + Number(row.amountPaid || 0), 0) : pdfInstallments.reduce((sum, row) => sum + Number(row.remainingAmount || 0), 0)
 
       const rowsHtml =
         activeReport === "expenses"
-          ? filteredExpenses
+          ? pdfExpenses
               .map(
                 (item, index) => `
                   <tr>
@@ -807,15 +828,15 @@ function ReportsPageContent() {
                     <td style="border:1px solid #d1d5db;padding:8px;">${report.employee.phonenumber}</td>
                     <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(report.basicSalary)}</td>
                     <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(report.totalAdvances)}</td>
-                    <td style="border:1px solid #d1d5db;padding:8px;">${report.advances.map(a => a.note || '-').join(', ') || '-'}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${report.employee.address || '-'}</td>
                     <td style="border:1px solid #d1d5db;padding:8px;">${formatMoney(report.remainingSalary)}</td>
-                    <td style="border:1px solid #d1d5db;padding:8px;">${String(selectedReportMonth).padStart(2, '0')}-${selectedReportYear}</td>
+                    <td style="border:1px solid #d1d5db;padding:8px;">${monthYearStr}</td>
                   </tr>
                 `,
               )
               .join("")
           : activeReport === "sales"
-          ? filteredSales
+          ? pdfSales
               .map(
                 (item, index) => `
                   <tr>
@@ -832,7 +853,7 @@ function ReportsPageContent() {
               )
               .join("")
           : activeReport === "payment-history"
-          ? filteredPaymentHistory
+          ? pdfPaymentHistory
               .map(
                 (item, index) => `
                   <tr>
@@ -985,7 +1006,7 @@ function ReportsPageContent() {
                     <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ژمارە تەلەفۆن</th>
                     <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">مووچەی بنەڕەتی</th>
                     <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">کۆی پێشەکییەکان</th>
-                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">تێبینی</th>
+                    <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">ناونیشان</th>
                     <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">بڕی ماوەی مووچە</th>
                     <th style="border:1px solid #9ca3af;padding:8px;background:#f1f5f9;">مانگ</th>
                   ` : activeReport === "sales" ? `
@@ -1204,11 +1225,41 @@ function ReportsPageContent() {
         ))}
       </div>
 
-      <div className="flex justify-start">
-        <Button onClick={savePdf} disabled={exporting || loading} className="bg-[#3dc1d3] hover:bg-[#35aebb]">
-          <FileText className="h-4 w-4" />
-          {exporting ? "ئامادەکردنی PDF..." : " پرێنت / pdf"}
-        </Button>
+      <div className="space-y-4">
+        <div className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border border-border/40">
+          <label className="text-sm font-semibold text-foreground">مانگ و ساڵی راپۆرت:</label>
+          <Select value={String(selectedReportMonth)} onValueChange={(val) => setSelectedReportMonth(parseInt(val))}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 12 }, (_, i) => {
+                const monthNum = i + 1
+                const monthName = new Date(2024, i).toLocaleDateString('ku-IQ', { month: 'long' })
+                return <SelectItem key={monthNum} value={String(monthNum)}>{monthName}</SelectItem>
+              })}
+            </SelectContent>
+          </Select>
+
+          <Select value={String(selectedReportYear)} onValueChange={(val) => setSelectedReportYear(parseInt(val))}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 10 }, (_, i) => {
+                const year = currentDate.getFullYear() - i
+                return <SelectItem key={year} value={String(year)}>{year}</SelectItem>
+              })}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex justify-start">
+          <Button onClick={savePdf} disabled={exporting || loading} className="bg-[#3dc1d3] hover:bg-[#35aebb]">
+            <FileText className="h-4 w-4" />
+            {exporting ? "ئامادەکردنی PDF..." : " پرێنت / pdf"}
+          </Button>
+        </div>
       </div>
 
       <div>
@@ -1279,7 +1330,7 @@ function ReportsPageContent() {
                 <TableHead className="text-right text-primary font-bold">ژمارە تەلەفۆن</TableHead>
                 <TableHead className="text-right text-primary font-bold">مووچەی بنەڕەتی</TableHead>
                 <TableHead className="text-right text-primary font-bold">کۆی پێشەکییەکان</TableHead>
-                <TableHead className="text-right text-primary font-bold">تێبینی</TableHead>
+                <TableHead className="text-right text-primary font-bold">ناونیشان</TableHead>
                 <TableHead className="text-right text-primary font-bold">بڕی ماوەی مووچە</TableHead>
                 <TableHead className="text-right text-primary font-bold">مانگ</TableHead>
                 <TableHead className="text-right text-primary font-bold">پرێنت</TableHead>
@@ -1323,7 +1374,7 @@ function ReportsPageContent() {
                     </span>
                   </TableCell>
                   <TableCell className="text-xs font-semibold text-foreground/80">
-                    {report.advances.map(a => a.note || '-').join(', ') || '-'}
+                    {report.employee.address || '-'}
                   </TableCell>
                   <TableCell className="text-foreground/70">
                     <span className="inline-flex h-5 items-center justify-center whitespace-nowrap rounded-4xl bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800 dark:bg-green-900/40 dark:text-green-300">

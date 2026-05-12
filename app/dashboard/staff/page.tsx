@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -342,6 +343,14 @@ function StaffPageContent() {
         </div>
 
         <div className="flex gap-1 flex-shrink-0">
+          <Link href="/dashboard/staff/reports">
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/30 active:scale-95 active:shadow-inner gap-1 text-white font-semibold px-2 sm:px-3 py-2 text-xs sm:text-sm transition-all duration-150"
+            >
+              <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span>ڕاپۆرتەکان</span>
+            </Button>
+          </Link>
           <Button
             onClick={() => setOpenAddAdvanceDialog(true)}
             className="bg-primary hover:shadow-lg hover:shadow-primary/30 active:scale-95 active:shadow-inner gap-1 text-white font-bold px-2 sm:px-3 py-2 text-xs sm:text-sm transition-all duration-150"

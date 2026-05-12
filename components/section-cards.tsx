@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { TrendingUpIcon, TrendingDownIcon, DollarSignIcon, CalendarIcon, UsersIcon, CreditCardIcon, ShoppingCartIcon, ReceiptIcon, ArrowUpRightIcon } from "lucide-react"
+import { useDashboardFilter } from "@/contexts/dashboard-filter-context"
 
 interface DashboardStats {
   totalRevenue: number
@@ -31,34 +32,42 @@ interface DashboardStats {
 }
 
 // Simple in-memory cache
-let statsCache: DashboardStats | null = null
+let statsCache: { data: DashboardStats | null; key: string } | null = null
 let cacheTimestamp = 0
 const CACHE_DURATION = 30000 // 30 seconds
 
 export const SectionCards = memo(function SectionCards() {
-  const [stats, setStats] = useState<DashboardStats | null>(() => statsCache)
-  const [loading, setLoading] = useState(() => !statsCache)
+  const { period, startDate, endDate } = useDashboardFilter()
+  const [stats, setStats] = useState<DashboardStats | null>(() => statsCache?.data || null)
+  const [loading, setLoading] = useState(() => !statsCache?.data)
 
   useEffect(() => {
     let isMounted = true
     
-    // Use cache if valid
+    // Create cache key based on period and dates
+    const cacheKey = `${period}-${startDate || ''}-${endDate || ''}`
+    
+    // Use cache if valid and key matches
     const now = Date.now()
-    if (statsCache && (now - cacheTimestamp) < CACHE_DURATION) {
-      setStats(statsCache)
+    if (statsCache && statsCache.key === cacheKey && (now - cacheTimestamp) < CACHE_DURATION) {
+      setStats(statsCache.data)
       setLoading(false)
       return
     }
 
     async function fetchStats() {
       try {
-        const response = await fetch('/api/dashboard/stats', {
+        const params = new URLSearchParams({ period })
+        if (startDate) params.append('from', startDate)
+        if (endDate) params.append('to', endDate)
+        
+        const response = await fetch(`/api/dashboard/stats?${params.toString()}`, {
           cache: 'no-store'
         })
         const data = await response.json()
         if (isMounted) {
           setStats(data.stats)
-          statsCache = data.stats
+          statsCache = { data: data.stats, key: cacheKey }
           cacheTimestamp = Date.now()
         }
       } catch (error) {
@@ -73,7 +82,7 @@ export const SectionCards = memo(function SectionCards() {
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [period, startDate, endDate])
 
   if (loading || !stats) {
     return (

@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { TimeFilter } from "@/components/time-filter"
 
 const pageNames: Record<string, string> = {
   '/dashboard': 'داشبۆرد',
@@ -22,6 +23,7 @@ const pageNames: Record<string, string> = {
 export function SiteHeader() {
   const pathname = usePathname()
   const pageTitle = pageNames[pathname] || 'کارمەندەکان'
+  const isDashboard = pathname === '/dashboard'
 
   return (
     <header className="fixed top-0 right-0 left-0 z-40 flex h-16 shrink-0 items-center justify-between gap-2 border-b border-border/40 bg-background backdrop-blur-sm transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-16">
@@ -31,8 +33,9 @@ export function SiteHeader() {
           orientation="vertical"
           className="mx-1 sm:mx-2 data-[orientation=vertical]:h-4"
         />
-        <div className="flex flex-col gap-0.5">
+        <div className="flex items-center gap-3">
           <h1 className="text-base font-bold text-primary sm:text-lg">{pageTitle}</h1>
+          {isDashboard && <TimeFilter />}
         </div>
       </div>
       <div className="flex items-center gap-2 px-3 sm:px-4 lg:gap-3 lg:px-6">

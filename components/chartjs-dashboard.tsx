@@ -18,6 +18,7 @@ import {
 } from "chart.js"
 import { Line, Bar, Doughnut, Radar } from "react-chartjs-2"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useDashboardFilter } from "@/contexts/dashboard-filter-context"
 
 ChartJS.register(
   CategoryScale,
@@ -52,15 +53,20 @@ interface ChartData {
 }
 
 export const ChartJSDashboard = memo(function ChartJSDashboard() {
+  const { period, startDate, endDate } = useDashboardFilter()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [chartData, setChartData] = useState<ChartData[]>([])
-  const [weeklyAppointments, setWeeklyAppointments] = useState<number[]>([])
+  const [expensesData, setExpensesData] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const response = await fetch('/api/dashboard/stats')
+        const params = new URLSearchParams({ period })
+        if (startDate) params.append('from', startDate)
+        if (endDate) params.append('to', endDate)
+        
+        const response = await fetch(`/api/dashboard/stats?${params.toString()}`)
         const data = await response.json()
         setStats(data.stats)
         setChartData(data.chartData || [])
@@ -71,31 +77,32 @@ export const ChartJSDashboard = memo(function ChartJSDashboard() {
       }
     }
     fetchData()
-  }, [])
+  }, [period, startDate, endDate])
 
   useEffect(() => {
-    async function fetchWeeklyAppointments() {
+    async function fetchExpenses() {
       try {
-        const response = await fetch('/api/appointments?period=week')
-        const appointments = await response.json()
+        const params = new URLSearchParams({ period })
+        if (startDate) params.append('from', startDate)
+        if (endDate) params.append('to', endDate)
         
-        const days = ['شەممە', 'یەکشەممە', 'دووشەممە', 'سێشەممە', 'چوارشەممە', 'پێنجشەممە', 'ھەینی']
-        const today = new Date().getDay()
-        const dayCounts = new Array(7).fill(0)
+        const response = await fetch(`/api/expenses?${params.toString()}`)
+        const expenses = await response.json()
         
-        appointments.forEach((apt: any) => {
-          const aptDate = new Date(apt.appointmentDate)
-          const dayOfWeek = aptDate.getDay()
-          dayCounts[dayOfWeek]++
-        })
+        // Group expenses by category
+        const breakdown = expenses.reduce((acc: Record<string, number>, exp: any) => {
+          const category = exp.category || 'خەرجی گشتی'
+          acc[category] = (acc[category] || 0) + Number(exp.amount || 0)
+          return acc
+        }, {})
         
-        setWeeklyAppointments(dayCounts)
+        setExpensesData(breakdown)
       } catch (error) {
-        console.error('Error fetching weekly appointments:', error)
+        console.error('Error fetching expenses:', error)
       }
     }
-    fetchWeeklyAppointments()
-  }, [])
+    fetchExpenses()
+  }, [period, startDate, endDate])
 
   // Treatment breakdown data
   const treatmentData = stats
@@ -162,50 +169,68 @@ export const ChartJSDashboard = memo(function ChartJSDashboard() {
       }
     : null
 
-  // Monthly trend data (real data from API)
-  const monthlyTrendData = {
-    labels: chartData.map(d => d.month),
-    datasets: [
-      {
-        label: 'دانیشتن',
-        data: chartData.map(d => d.appointments),
-        borderColor: 'rgba(16, 185, 129, 1)',
-        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-        tension: 0.4,
-        fill: true,
-        pointBackgroundColor: 'rgba(16, 185, 129, 1)',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-        pointRadius: 5
-      },
-      {
-        label: 'داهات',
-        data: chartData.map(d => d.revenue),
-        borderColor: 'rgba(59, 130, 246, 1)',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        tension: 0.4,
-        fill: true,
-        pointBackgroundColor: 'rgba(59, 130, 246, 1)',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2,
-        pointRadius: 5
+  // Expenses breakdown data
+  const expensesBreakdownData = Object.keys(expensesData).length > 0
+    ? {
+        labels: Object.keys(expensesData),
+        datasets: [
+          {
+            label: "خەرجی",
+            data: Object.values(expensesData),
+            backgroundColor: [
+              'rgba(239, 68, 68, 0.8)',
+              'rgba(245, 158, 11, 0.8)',
+              'rgba(168, 85, 247, 0.8)',
+              'rgba(14, 165, 233, 0.8)',
+              'rgba(236, 72, 153, 0.8)'
+            ],
+            borderColor: [
+              'rgba(239, 68, 68, 1)',
+              'rgba(245, 158, 11, 1)',
+              'rgba(168, 85, 247, 1)',
+              'rgba(14, 165, 233, 1)',
+              'rgba(236, 72, 153, 1)'
+            ],
+            borderWidth: 2,
+            hoverOffset: 10
+          }
+        ]
       }
-    ]
+    : null
+
+  const getChartLabel = (dataPoint: any) => {
+    return dataPoint.month || dataPoint.day || ''
   }
 
-  // Bar chart data (real weekly appointments)
+  // Bar chart data - uses chart data from API
+  const appointmentLabels = chartData.map(d => getChartLabel(d))
+  const appointmentValues = chartData.map(d => d.appointments)
+  const salesValues = chartData.map(d => d.sales || 0)
+
   const barData = {
-    labels: ['شەممە', 'یەکشەممە', 'دووشەممە', 'سێشەممە', 'چوارشەممە', 'پێنجشەممە', 'ھەینی'],
+    labels: appointmentLabels,
     datasets: [
       {
         label: 'دانیشتن',
-        data: weeklyAppointments,
+        data: appointmentValues,
         backgroundColor: 'rgba(139, 92, 246, 0.8)',
         borderColor: 'rgba(139, 92, 246, 1)',
         borderWidth: 2,
         borderRadius: 8
       }
     ]
+  }
+
+  const salesBarData = {
+    labels: appointmentLabels,
+    datasets: [{
+      label: 'فرۆشتن',
+      data: salesValues,
+      backgroundColor: 'rgba(59, 130, 246, 0.8)',
+      borderColor: 'rgba(59, 130, 246, 1)',
+      borderWidth: 2,
+      borderRadius: 8
+    }]
   }
 
   // Radar chart data (real performance metrics)
@@ -270,29 +295,6 @@ export const ChartJSDashboard = memo(function ChartJSDashboard() {
     }
   }
 
-  const lineOptions = {
-    ...chartOptions,
-    scales: {
-      y: {
-        beginAtZero: true,
-        grid: {
-          color: 'rgba(0, 0, 0, 0.05)'
-        },
-        ticks: {
-          color: 'rgba(15, 23, 42, 0.6)'
-        }
-      },
-      x: {
-        grid: {
-          display: false
-        },
-        ticks: {
-          color: 'rgba(15, 23, 42, 0.6)'
-        }
-      }
-    }
-  }
-
   const barOptions = {
     ...chartOptions,
     scales: {
@@ -351,7 +353,7 @@ export const ChartJSDashboard = memo(function ChartJSDashboard() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-center h-[300px]">
-                <div className="text-slate-500">بارکردن...</div>
+                <div className="text-slate-500">تکایە چاوەڕێبکە...</div>
               </div>
             </CardContent>
           </Card>
@@ -362,20 +364,6 @@ export const ChartJSDashboard = memo(function ChartJSDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Line Chart - Monthly Trends */}
-      <Card className="border-0 bg-white dark:bg-slate-900 shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-slate-900 dark:text-white text-lg font-bold">
-            ڕێنمای مانگانە
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[300px]">
-            <Line data={monthlyTrendData} options={lineOptions} />
-          </div>
-        </CardContent>
-      </Card>
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Doughnut Chart - Treatment Breakdown */}
         <Card className="border-0 bg-white dark:bg-slate-900 shadow-lg">
@@ -419,17 +407,23 @@ export const ChartJSDashboard = memo(function ChartJSDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Bar Chart - Weekly Appointments */}
+        {/* Doughnut Chart - Expenses Breakdown */}
         <Card className="border-0 bg-white dark:bg-slate-900 shadow-lg">
           <CardHeader>
             <CardTitle className="text-slate-900 dark:text-white text-lg font-bold">
-              دانیشتن بەپێی ڕۆژ
+              بەشی خەرجی
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
-              <Bar data={barData} options={barOptions} />
-            </div>
+            {expensesBreakdownData && expensesBreakdownData.labels.length > 0 ? (
+              <div className="h-[300px]">
+                <Doughnut data={expensesBreakdownData} options={chartOptions} />
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[300px]">
+                <div className="text-slate-500">هیچ داتایەک نیە</div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -450,6 +444,36 @@ export const ChartJSDashboard = memo(function ChartJSDashboard() {
                 <div className="text-slate-500">هیچ داتایەک نیە</div>
               </div>
             )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Bar Chart - Weekly Appointments */}
+        <Card className="border-0 bg-white dark:bg-slate-900 shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-slate-900 dark:text-white text-lg font-bold">
+              دانیشتن بەپێی ڕۆژ
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <Bar data={barData} options={barOptions} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Bar Chart - Sales by Day */}
+        <Card className="border-0 bg-white dark:bg-slate-900 shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-slate-900 dark:text-white text-lg font-bold">
+              فرۆشتن بەپێی ڕۆژ
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <Bar data={salesBarData} options={barOptions} />
+            </div>
           </CardContent>
         </Card>
       </div>
