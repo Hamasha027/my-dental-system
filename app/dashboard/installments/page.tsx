@@ -2,6 +2,12 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { toast } from '@/lib/toast';
+import {
+  notifyInstallmentAdded,
+  notifyInstallmentPayment,
+  notifyInstallmentDeleted,
+  notifyActionError,
+} from '@/lib/notify';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import {
@@ -209,7 +215,7 @@ export default function InstallmentsPage() {
       }
 
       await fetchInstallments();
-      toast.success('قیست بەسەرکەوتویی زیاد کرا');
+      notifyInstallmentAdded(formData.patientName);
       setOpenAddDialog(false);
       setFormData({
         patientName: '',
@@ -222,7 +228,9 @@ export default function InstallmentsPage() {
         address: '',
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'هەڵەیەک ڕویدا');
+      const message = err instanceof Error ? err.message : 'هەڵەیەک ڕویدا';
+      setError(message);
+      notifyActionError(message);
     } finally {
       setSubmitting(false);
     }
@@ -250,7 +258,10 @@ export default function InstallmentsPage() {
       }
 
       await fetchInstallments();
-      toast.success('پارە بەسەرکەوتویی تۆمار کرا');
+      notifyInstallmentPayment(
+        selectedInstallment.patientName,
+        Number(paymentFormData.amountPaid)
+      );
       setOpenPaymentDialog(false);
       setPaymentFormData({
         amountPaid: '',
@@ -258,7 +269,9 @@ export default function InstallmentsPage() {
       });
       setSelectedInstallment(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'هەڵەیەک ڕویدا');
+      const message = err instanceof Error ? err.message : 'هەڵەیەک ڕویدا';
+      setError(message);
+      notifyActionError(message);
     } finally {
       setSubmitting(false);
     }
@@ -266,6 +279,7 @@ export default function InstallmentsPage() {
 
   const handleDeleteInstallment = async (id: number) => {
     setDeleting(true);
+    const deleted = installments.find((i) => i.id === id);
     try {
       const response = await fetch(`/api/installments?id=${id}`, {
         method: 'DELETE',
@@ -277,9 +291,11 @@ export default function InstallmentsPage() {
 
       await fetchInstallments();
       setDeleteConfirm(null);
-      toast.success('قیست بەسەرکەوتویی سڕایەوە');
+      notifyInstallmentDeleted(deleted?.patientName ?? 'قیست');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'هەڵەیەک ڕویدا');
+      const message = err instanceof Error ? err.message : 'هەڵەیەک ڕویدا';
+      setError(message);
+      notifyActionError(message);
     } finally {
       setDeleting(false);
     }

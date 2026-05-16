@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/select';
 import { Loader2, FileText, CheckCircle2, AlertCircle, Download, ArrowRight } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from '@/lib/toast';
+import { notifyMonthlyReportCreated, notifyActionError } from '@/lib/notify';
 import Link from 'next/link';
 
 interface MonthlyRecord {
@@ -152,12 +152,12 @@ export default function StaffReportsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payroll-history'] });
       queryClient.invalidateQueries({ queryKey: ['monthly-records-report'] });
-      toast.success('ڕاپۆرتی مانگانە بە سەرکەوتوویی دروستکرا');
+      notifyMonthlyReportCreated();
       setOpenFinalizeDialog(false);
     },
     onError: (error) => {
       const message = error instanceof Error ? error.message : 'خرابی لە دروستکردنی ڕاپۆرت';
-      toast.error(message);
+      notifyActionError(message);
     },
   });
 

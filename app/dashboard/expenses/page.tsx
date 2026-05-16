@@ -4,6 +4,12 @@ import { useEffect, useMemo, useState } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { toast } from '@/lib/toast';
+import {
+  notifyExpenseAdded,
+  notifyExpenseUpdated,
+  notifyExpenseDeleted,
+  notifyActionError,
+} from '@/lib/notify';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -335,12 +341,14 @@ export default function ExpensesPage() {
         throw new Error(payload.error || 'تۆمارکردنی خەرجی سەرکەوتوو نەبوو');
       }
 
-      toast.success('خەرجی نوێ بەسەرکەوتوویی تۆمارکرا');
+      notifyExpenseAdded(addForm.title, Number(addForm.amount));
       setAddOpen(false);
       resetAddForm();
       await fetchExpenses(searchTerm);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'هەڵەیەک ڕویدا');
+      const message = err instanceof Error ? err.message : 'هەڵەیەک ڕویدا';
+      setError(message);
+      notifyActionError(message);
     } finally {
       setSubmitting(false);
     }
@@ -388,12 +396,14 @@ export default function ExpensesPage() {
         throw new Error(payload.error || 'نوێکردنەوەی خەرجی سەرکەوتوو نەبوو');
       }
 
-      toast.success('خەرجی بەسەرکەوتوویی نوێکرایەوە');
+      notifyExpenseUpdated(editForm.title);
       setEditOpen(false);
       setSelectedExpense(null);
       await fetchExpenses(searchTerm);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'هەڵەیەک ڕویدا');
+      const message = err instanceof Error ? err.message : 'هەڵەیەک ڕویدا';
+      setError(message);
+      notifyActionError(message);
     } finally {
       setSubmitting(false);
     }
@@ -420,12 +430,14 @@ export default function ExpensesPage() {
         throw new Error(payload.error || 'سڕینەوەی خەرجی سەرکەوتوو نەبوو');
       }
 
-      toast.success('خەرجی بەسەرکەوتوویی سڕایەوە');
+      notifyExpenseDeleted(selectedExpense.title);
       setDeleteOpen(false);
       setSelectedExpense(null);
       await fetchExpenses(searchTerm);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'هەڵەیەک ڕویدا');
+      const message = err instanceof Error ? err.message : 'هەڵەیەک ڕویدا';
+      setError(message);
+      notifyActionError(message);
     } finally {
       setDeleting(null);
     }

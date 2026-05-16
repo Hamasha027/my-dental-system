@@ -30,6 +30,7 @@ import {
 import { Loader2, Trash2, Plus, User, Search, Pencil, Eye, FileText, Wallet, CalendarCheck } from 'lucide-react';
 import { useQueryState } from 'nuqs';
 import { useStaff, useMonthlyRecords, useAddStaff, useAddMonthlyRecord, useDeleteStaff, useUpdateStaff, useCloseMonth } from '@/hooks/useStaffQueries';
+import { notifyActionError, notifyMonthClosed } from '@/lib/notify';
 import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from '@/components/pagination';
 
@@ -171,6 +172,7 @@ function StaffPageContent() {
     e.preventDefault();
 
     if (!staffFormData.fullName || !staffFormData.role || !staffFormData.phonenumber) {
+      notifyActionError('تکایە ناو، ڕۆڵ و ژمارەی تەلەفۆن پڕبکەرەوە', 'فۆرم ناتەواو');
       return;
     }
 
@@ -206,6 +208,7 @@ function StaffPageContent() {
     e.preventDefault();
 
     if (!advanceFormData.staffId || !advanceFormData.amount) {
+      notifyActionError('تکایە کارمەند و بڕی پێشەکی هەڵبژێرە', 'فۆرم ناتەواو');
       return;
     }
 
@@ -274,6 +277,7 @@ function StaffPageContent() {
     e.preventDefault();
 
     if (!editingStaffId || !editFormData.fullName || !editFormData.role || !editFormData.phonenumber) {
+      notifyActionError('تکایە ناو، ڕۆڵ و ژمارەی تەلەفۆن پڕبکەرەوە', 'فۆرم ناتەواو');
       return;
     }
 
@@ -673,20 +677,22 @@ function StaffPageContent() {
               type="button"
               onClick={async () => {
                 try {
-                  // Step 1: finalize month (save report to history)
                   await closeMonthMutation.mutateAsync(currentMonthKey);
-                  // Step 2: mark all advances as paid (reset to 0 in current view)
-                  await fetch('/api/payroll', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'payAll', monthKey: currentMonthKey }),
-                  });
-                  // Step 3: refresh data so UI shows zero
-                  await queryClient.invalidateQueries({ queryKey: ['monthly-records', currentMonthKey] });
-                  setOpenCloseMonthDialog(false);
                 } catch {
-                  // error toast already shown by the mutation
+                  return;
                 }
+                const payRes = await fetch('/api/payroll', {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action: 'payAll', monthKey: currentMonthKey }),
+                });
+                if (!payRes.ok) {
+                  notifyActionError('هەڵە لە نوێکردنەوەی دۆخی پارەدان');
+                  return;
+                }
+                await queryClient.invalidateQueries({ queryKey: ['monthly-records', currentMonthKey] });
+                setOpenCloseMonthDialog(false);
+                notifyMonthClosed();
               }}
               disabled={closeMonthMutation.isPending}
               className="flex-1 bg-primary hover:shadow-lg hover:shadow-primary/30 active:scale-95 active:shadow-inner text-white font-semibold transition-all duration-150"

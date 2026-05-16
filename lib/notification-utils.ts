@@ -1,5 +1,18 @@
 import type { NotificationType } from '@/contexts/notifications-context'
-import { ShoppingCart, Users, User, Calendar, CheckCircle2, XCircle, Info, Bell, Trash2 } from 'lucide-react'
+import {
+  ShoppingCart,
+  Users,
+  User,
+  Calendar,
+  CheckCircle2,
+  XCircle,
+  Info,
+  Bell,
+  Trash2,
+  Wallet,
+  Receipt,
+  CreditCard,
+} from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 export function formatMoney(value: number) {
@@ -75,6 +88,7 @@ export function getNotificationStyle(type: NotificationType): NotificationStyle 
         ringClass: 'ring-orange-500/30',
       }
     case 'staff':
+    case 'staff_advance':
       return {
         icon: User,
         iconClass: 'text-violet-600 dark:text-violet-400',
@@ -82,6 +96,60 @@ export function getNotificationStyle(type: NotificationType): NotificationStyle 
         accentClass: 'border-r-violet-500',
         gradient: 'from-violet-500/20 to-purple-500/10',
         ringClass: 'ring-violet-500/30',
+      }
+    case 'staff_delete':
+      return {
+        icon: Trash2,
+        iconClass: 'text-violet-600 dark:text-violet-400',
+        cardClass: 'bg-violet-50/90 dark:bg-violet-950/40 border-violet-200/80 dark:border-violet-800/60',
+        accentClass: 'border-r-violet-500',
+        gradient: 'from-violet-500/20 to-purple-500/10',
+        ringClass: 'ring-violet-500/30',
+      }
+    case 'expense':
+      return {
+        icon: Receipt,
+        iconClass: 'text-amber-600 dark:text-amber-400',
+        cardClass: 'bg-amber-50/90 dark:bg-amber-950/40 border-amber-200/80 dark:border-amber-800/60',
+        accentClass: 'border-r-amber-500',
+        gradient: 'from-amber-500/20 to-yellow-500/10',
+        ringClass: 'ring-amber-500/30',
+      }
+    case 'expense_delete':
+      return {
+        icon: Trash2,
+        iconClass: 'text-amber-600 dark:text-amber-400',
+        cardClass: 'bg-amber-50/90 dark:bg-amber-950/40 border-amber-200/80 dark:border-amber-800/60',
+        accentClass: 'border-r-amber-500',
+        gradient: 'from-amber-500/20 to-yellow-500/10',
+        ringClass: 'ring-amber-500/30',
+      }
+    case 'installment':
+      return {
+        icon: CreditCard,
+        iconClass: 'text-cyan-600 dark:text-cyan-400',
+        cardClass: 'bg-cyan-50/90 dark:bg-cyan-950/40 border-cyan-200/80 dark:border-cyan-800/60',
+        accentClass: 'border-r-cyan-500',
+        gradient: 'from-cyan-500/20 to-blue-500/10',
+        ringClass: 'ring-cyan-500/30',
+      }
+    case 'installment_payment':
+      return {
+        icon: Wallet,
+        iconClass: 'text-cyan-600 dark:text-cyan-400',
+        cardClass: 'bg-cyan-50/90 dark:bg-cyan-950/40 border-cyan-200/80 dark:border-cyan-800/60',
+        accentClass: 'border-r-cyan-500',
+        gradient: 'from-cyan-500/20 to-blue-500/10',
+        ringClass: 'ring-cyan-500/30',
+      }
+    case 'installment_delete':
+      return {
+        icon: Trash2,
+        iconClass: 'text-cyan-600 dark:text-cyan-400',
+        cardClass: 'bg-cyan-50/90 dark:bg-cyan-950/40 border-cyan-200/80 dark:border-cyan-800/60',
+        accentClass: 'border-r-cyan-500',
+        gradient: 'from-cyan-500/20 to-blue-500/10',
+        ringClass: 'ring-cyan-500/30',
       }
     case 'appointment':
       return {

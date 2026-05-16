@@ -1,8 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { toast } from '@/lib/toast';
-import { useNotificationHelper } from '@/hooks/useNotificationHelper';
+import {
+  notifyPatientAdded,
+  notifyPatientUpdated,
+  notifyPatientDeleted,
+  notifyActionError,
+} from '@/lib/notify';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -96,7 +100,6 @@ const getTreatmentColor = (treatmentType: string) => {
 };
 
 export default function AppointmentsPage() {
-  const { notifyPatient, notifyPatientDeleted } = useNotificationHelper();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -232,13 +235,11 @@ export default function AppointmentsPage() {
 
       await fetchAppointments();
 
-      if (!editingAppointment) {
-        notifyPatient(formData.name, formData.treatmentType);
+      if (editingAppointment) {
+        notifyPatientUpdated(formData.name);
+      } else {
+        notifyPatientAdded(formData.name, formData.treatmentType);
       }
-
-      toast.success(
-        editingAppointment ? 'نەخۆش بەسەرکەوتویی نوێکرایەوە' : 'نەخۆش بەسەرکەوتویی زیاد کرا'
-      );
       
       setOpenDialog(false);
       setEditingAppointment(null);
@@ -252,7 +253,9 @@ export default function AppointmentsPage() {
         money: '',
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'هەڵەیەک ڕویدا');
+      const message = err instanceof Error ? err.message : 'هەڵەیەک ڕویدا';
+      setError(message);
+      notifyActionError(message);
     } finally {
       setSubmitting(false);
     }
@@ -303,14 +306,16 @@ export default function AppointmentsPage() {
 
       if (deleted?.name) {
         notifyPatientDeleted(deleted.name);
+      } else {
+        notifyPatientDeleted('نەخۆش');
       }
 
       await fetchAppointments();
       setDeleteConfirm(null);
-
-      toast.success('نەخۆش بەسەرکەوتویی سڕایەوە');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'هەڵەیەک ڕویدا');
+      const message = err instanceof Error ? err.message : 'هەڵەیەک ڕویدا';
+      setError(message);
+      notifyActionError(message);
     } finally {
       setDeleting(false);
     }

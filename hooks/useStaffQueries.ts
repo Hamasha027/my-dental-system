@@ -1,5 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from '@/lib/toast';
+import {
+  notifyStaffAdded,
+  notifyStaffUpdated,
+  notifyStaffDeleted,
+  notifyAdvanceRecorded,
+  notifyMonthlyReportCreated,
+  notifyActionError,
+} from '@/lib/notify';
 
 interface Staff {
   id: number;
@@ -81,12 +88,12 @@ export function useAddStaff() {
       if (!res.ok) throw new Error('Failed to add staff');
       return (await res.json()).staff as Staff;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['staff'] });
-      toast.success('کارمەند زیاد کرا');
+      notifyStaffAdded(variables.fullName);
     },
     onError: () => {
-      toast.error('خرابی لە زیادکردنی کارمەند');
+      notifyActionError('خرابی لە زیادکردنی کارمەند');
     },
   });
 }
@@ -108,10 +115,11 @@ export function useAddMonthlyRecord() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['monthly-records', variables.monthKey] });
-      toast.success('پێشەکی تۆمار کرا');
+      notifyAdvanceRecorded(variables.amount, variables.type === 'Salary');
     },
-    onError: () => {
-      toast.error('خرابی لە تۆمارکردنی پێشەکی');
+    onError: (_error, variables) => {
+      const label = variables?.type === 'Salary' ? 'موچە' : 'پێشەکی';
+      notifyActionError(`خرابی لە تۆمارکردنی ${label}`);
     },
   });
 }
@@ -142,11 +150,10 @@ export function useCloseMonth() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['monthly-records'] });
-      toast.success('ڕاپۆرتی مانگانە دروستکرا');
     },
     onError: (error) => {
       const message = error instanceof Error ? error.message : 'خرابی لە دروستکردنی ڕاپۆرت';
-      toast.error(message);
+      notifyActionError(message);
     },
   });
 }
@@ -166,10 +173,11 @@ export function useDeleteStaff() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['staff'] });
-      toast.success('کارمەند سڕایەوە');
+      queryClient.invalidateQueries({ queryKey: ['monthly-records'] });
+      notifyStaffDeleted();
     },
     onError: () => {
-      toast.error('خرابی لە سڕینەوەی کارمەند');
+      notifyActionError('خرابی لە سڕینەوەی کارمەند');
     },
   });
 }
@@ -189,12 +197,12 @@ export function useUpdateStaff() {
       if (!res.ok) throw new Error('Failed to update staff');
       return (await res.json()).staff as Staff;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['staff'] });
-      toast.success('زانیاری کارمەند نوێکرایەوە');
+      notifyStaffUpdated(variables.fullName ?? 'کارمەند');
     },
     onError: () => {
-      toast.error('خرابی لە نوێکردنەوەی زانیاری کارمەند');
+      notifyActionError('خرابی لە نوێکردنەوەی زانیاری کارمەند');
     },
   });
 }

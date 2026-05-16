@@ -3,8 +3,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import {
+  notifySaleAdded,
+  notifySaleUpdated,
+  notifySaleDeleted,
+  notifyActionError,
+} from '@/lib/notify';
 import { toast } from '@/lib/toast';
-import { useNotificationHelper } from '@/hooks/useNotificationHelper';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -97,7 +102,6 @@ const getLastMonthEnd = () => {
 };
 
 export default function SellerPage() {
-  const { notifySale, notifySaleDeleted } = useNotificationHelper();
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -234,16 +238,16 @@ export default function SellerPage() {
 
   const handleSaveSale = async () => {
     if (!formData.productName.trim()) {
-      toast.error('تکایە ناوی کاڵا بنووسە');
+      notifyActionError('تکایە ناوی کاڵا بنووسە', 'فۆرم ناتەواو');
       return;
     }
     if (!formData.category && !customCategory) {
-      toast.error('تکایە کاتیگۆری هەڵبژێرە');
+      notifyActionError('تکایە کاتیگۆری هەڵبژێرە', 'فۆرم ناتەواو');
       return;
     }
     const cleanedPrice = stripCommas(formData.price);
     if (!cleanedPrice || isNaN(Number(cleanedPrice)) || Number(cleanedPrice) <= 0) {
-      toast.error('تکایە نرخی دروست بنووسە');
+      notifyActionError('تکایە نرخی دروست بنووسە', 'فۆرم ناتەواو');
       return;
     }
 
@@ -283,14 +287,15 @@ export default function SellerPage() {
       }
 
       await fetchSales(searchQuery);
-      if (!editingSale) {
-        notifySale(saleData.productName, saleData.price, saleData.quantity);
+      if (editingSale) {
+        notifySaleUpdated(saleData.productName);
+      } else {
+        notifySaleAdded(saleData.productName, saleData.price, saleData.quantity);
       }
-      toast.success(editingSale ? 'فرۆشتن بە سەرکەوتوویی نوێکرایەوە' : 'فرۆشتن بە سەرکەوتوویی تۆمارکرا');
       setIsFormOpen(false);
     } catch (error) {
       console.error('Error saving sale:', error);
-      toast.error('هەڵە لە تۆمارکردنی فرۆشتن');
+      notifyActionError('هەڵە لە تۆمارکردنی فرۆشتن');
     }
   };
 
@@ -313,12 +318,11 @@ export default function SellerPage() {
         const total = Number(deletingSale.totalPrice) || Number(deletingSale.price) * Number(deletingSale.quantity)
         notifySaleDeleted(deletingSale.productName, total)
         await fetchSales(searchQuery);
-        toast.success('فرۆشتن بە سەرکەوتوویی سڕایەوە');
         setIsDeleteDialogOpen(false);
         setDeletingSale(null);
       } catch (error) {
         console.error('Error deleting sale:', error);
-        toast.error('هەڵە لە سڕینەوەی فرۆشتن');
+        notifyActionError('هەڵە لە سڕینەوەی فرۆشتن');
       }
     }
   };

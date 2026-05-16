@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react'
 import { preloadNotificationSounds } from '@/lib/notification-sound'
+import { registerPushNotificationHandler } from '@/lib/push-notification'
 
 export type NotificationType =
   | 'sale'
@@ -9,6 +10,13 @@ export type NotificationType =
   | 'sale_delete'
   | 'patient_delete'
   | 'staff'
+  | 'staff_delete'
+  | 'staff_advance'
+  | 'expense'
+  | 'expense_delete'
+  | 'installment'
+  | 'installment_payment'
+  | 'installment_delete'
   | 'appointment'
   | 'success'
   | 'error'
@@ -37,10 +45,6 @@ const NotificationsContext = createContext<NotificationsContextType | undefined>
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
 
-  useEffect(() => {
-    preloadNotificationSounds()
-  }, [])
-
   const addNotification = useCallback((notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
     const newNotification: Notification = {
       ...notification,
@@ -51,6 +55,12 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
     setNotifications((prev) => [newNotification, ...prev].slice(0, 50))
   }, [])
+
+  useEffect(() => {
+    preloadNotificationSounds()
+    registerPushNotificationHandler(addNotification)
+    return () => registerPushNotificationHandler(() => {})
+  }, [addNotification])
 
   const removeNotification = useCallback((id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id))

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { UserIcon, MailIcon, LockIcon, KeyIcon, CheckCircleIcon, XCircleIcon } from "lucide-react"
 import { useUser } from "@/contexts/user-context"
+import { notifySettingsUpdated, notifyActionError } from "@/lib/notify"
 
 export default function SettingsPage() {
   const { user, refreshUser } = useUser()
@@ -97,15 +98,18 @@ export default function SettingsPage() {
 
       if (response.ok) {
         setEmailMessage({ type: 'success', text: data.message })
+        notifySettingsUpdated('ئیمەیڵ نوێکرایەوە', data.message)
         await refreshUser()
         setCurrentEmail(newEmail)
         setNewEmail("")
         setShowEmailSuccessModal(true)
       } else {
         setEmailMessage({ type: 'error', text: data.message })
+        notifyActionError(data.message || 'هەڵە لە نوێکردنەوەی ئیمەیڵ')
       }
     } catch (error) {
       setEmailMessage({ type: 'error', text: 'هەڵەیەک ڕویدا' })
+      notifyActionError('هەڵەیەک ڕویدا')
     } finally {
       setEmailLoading(false)
     }
@@ -117,11 +121,13 @@ export default function SettingsPage() {
 
     if (newPassword !== confirmPassword) {
       setPasswordMessage({ type: 'error', text: 'وشەی نهێنی نوێ یەک ناچێت' })
+      notifyActionError('وشەی نهێنی نوێ یەک ناچێت')
       return
     }
 
     if (newPassword.length < 6) {
       setPasswordMessage({ type: 'error', text: 'وشەی نهێنی نوێ دەبێت لە 6 پیت زیاتر بێت' })
+      notifyActionError('وشەی نهێنی نوێ دەبێت لە 6 پیت زیاتر بێت')
       return
     }
 
@@ -138,15 +144,18 @@ export default function SettingsPage() {
 
       if (response.ok) {
         setPasswordMessage({ type: 'success', text: data.message })
+        notifySettingsUpdated('وشەی نهێنی گۆڕدرا', data.message)
         setCurrentPassword("")
         setNewPassword("")
         setConfirmPassword("")
         setShowPasswordSuccessModal(true)
       } else {
         setPasswordMessage({ type: 'error', text: data.message })
+        notifyActionError(data.message || 'هەڵە لە گۆڕینی وشەی نهێنی')
       }
     } catch (error) {
       setPasswordMessage({ type: 'error', text: 'هەڵەیەک ڕویدا' })
+      notifyActionError('هەڵەیەک ڕویدا')
     } finally {
       setPasswordLoading(false)
     }
@@ -158,11 +167,13 @@ export default function SettingsPage() {
 
     if (newOTP !== confirmOTP) {
       setOtpMessage({ type: 'error', text: 'کۆدی نوێ یەک ناچێت' })
+      notifyActionError('کۆدی نوێ یەک ناچێت')
       return
     }
 
     if (!/^\d{6}$/.test(newOTP)) {
       setOtpMessage({ type: 'error', text: 'کۆدی تایبەت دەبێت تەنها ٦ ژمارە بێت' })
+      notifyActionError('کۆدی تایبەت دەبێت تەنها ٦ ژمارە بێت')
       return
     }
 
@@ -179,15 +190,18 @@ export default function SettingsPage() {
 
       if (response.ok) {
         setOtpMessage({ type: 'success', text: data.message })
+        notifySettingsUpdated('کۆدی تایبەت گۆڕدرا', data.message)
         setCurrentOTP("")
         setNewOTP("")
         setConfirmOTP("")
         setShowOTPSuccessModal(true)
       } else {
         setOtpMessage({ type: 'error', text: data.message })
+        notifyActionError(data.message || 'هەڵە لە گۆڕینی کۆدی تایبەت')
       }
     } catch (error) {
       setOtpMessage({ type: 'error', text: 'هەڵەیەک ڕویدا' })
+      notifyActionError('هەڵەیەک ڕویدا')
     } finally {
       setOtpLoading(false)
     }
