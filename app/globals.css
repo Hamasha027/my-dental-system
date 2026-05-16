@@ -362,3 +362,18 @@
 [data-sonner-toaster] [data-sonner-toast] [data-icon] {
   color: #ffffff !important;
 }
+
+/* Sonner mobile — top-center + RTL: library drops translateX(-50%); keep toasts centered */
+@media (max-width: 600px) {
+  [data-sonner-toaster][data-x-position="center"] {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    width: min(356px, calc(100vw - 2rem)) !important;
+  }
+
+  [data-sonner-toaster][dir="rtl"][data-x-position="center"] {
+    left: 50% !important;
+    right: auto !important;
+  }
+}
