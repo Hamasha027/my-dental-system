@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { TimeFilter } from "@/components/time-filter"
+import { NotificationBell } from "@/components/notification-bell"
 
 const pageNames: Record<string, string> = {
   '/dashboard': 'داشبۆرد',
@@ -39,7 +40,9 @@ export function SiteHeader() {
         </div>
       </div>
       <div className="flex items-center gap-2 px-3 sm:px-4 lg:gap-3 lg:px-6">
-        <ThemeToggle />
+      <ThemeToggle />
+        <NotificationBell />
+     
       </div>
     </header>
   )

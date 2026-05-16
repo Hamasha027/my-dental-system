@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/select';
 import { Loader2, FileText, CheckCircle2, AlertCircle, Download, ArrowRight } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import Link from 'next/link';
 
 interface MonthlyRecord {
@@ -240,11 +240,11 @@ export default function StaffReportsPage() {
           </Select>
         </div>
 
-        {!isCurrentMonthFinalized && selectedMonth === getMonthKey() && (
+        {!isCurrentMonthFinalized && (
           <div className="flex items-end">
             <Button
               onClick={() => setOpenFinalizeDialog(true)}
-              className="bg-green-600 hover:bg-green-700 text-white gap-2"
+              className="bg-primary hover:shadow-lg hover:shadow-primary/30 active:scale-95 active:shadow-inner gap-2 text-white font-semibold px-4 py-2 transition-all duration-150"
             >
               <CheckCircle2 className="h-4 w-4" />
               کۆتایی بهێنە مانگە
@@ -393,6 +393,9 @@ export default function StaffReportsPage() {
             <DialogTitle>کۆتایی بهێنان</DialogTitle>
             <DialogDescription>
               ئایا دڵنیای کە دەتەوێ مانگی {getMonthDisplay(selectedMonth)} کۆتایی بهێنیت؟ ئەم کارە ناتوانیت گێڕانەوە.
+              <div className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+                monthKey: {selectedMonth}
+              </div>
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -414,9 +417,9 @@ export default function StaffReportsPage() {
                 پاشگەزبوون
               </Button>
               <Button
-                className="bg-green-600 hover:bg-green-700"
                 onClick={() => finalizeMutation.mutate(selectedMonth)}
                 disabled={finalizeMutation.isPending}
+                className="bg-primary hover:shadow-lg hover:shadow-primary/30 active:scale-95 active:shadow-inner text-white font-semibold transition-all duration-150"
               >
                 {finalizeMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                 کۆتایی بهێنە

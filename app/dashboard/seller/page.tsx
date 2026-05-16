@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
+import { useNotificationHelper } from '@/hooks/useNotificationHelper';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -96,6 +97,7 @@ const getLastMonthEnd = () => {
 };
 
 export default function SellerPage() {
+  const { notifySale, notifySaleDeleted } = useNotificationHelper();
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -281,6 +283,9 @@ export default function SellerPage() {
       }
 
       await fetchSales(searchQuery);
+      if (!editingSale) {
+        notifySale(saleData.productName, saleData.price, saleData.quantity);
+      }
       toast.success(editingSale ? 'فرۆشتن بە سەرکەوتوویی نوێکرایەوە' : 'فرۆشتن بە سەرکەوتوویی تۆمارکرا');
       setIsFormOpen(false);
     } catch (error) {
@@ -305,6 +310,8 @@ export default function SellerPage() {
           throw new Error('هەڵە لە سڕینەوەی فرۆشتن');
         }
 
+        const total = Number(deletingSale.totalPrice) || Number(deletingSale.price) * Number(deletingSale.quantity)
+        notifySaleDeleted(deletingSale.productName, total)
         await fetchSales(searchQuery);
         toast.success('فرۆشتن بە سەرکەوتوویی سڕایەوە');
         setIsDeleteDialogOpen(false);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import {

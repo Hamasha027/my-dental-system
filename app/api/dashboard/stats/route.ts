@@ -62,10 +62,6 @@ export async function GET(request: Request) {
 
     const monthStartStr = toDateOnly(startDate)
     const nextMonthStartStr = toDateOnly(endDate)
-    
-    // Convert strings to Date objects for proper database comparison
-    const startDateObj = new Date(monthStartStr);
-    const endDateObj = new Date(nextMonthStartStr);
 
     // Get current period appointments
     const currentPeriodAppointments = await db
@@ -73,8 +69,8 @@ export async function GET(request: Request) {
       .from(appointmentsTable)
       .where(
         and(
-          gte(appointmentsTable.appointmentDate, startDateObj),
-          lt(appointmentsTable.appointmentDate, endDateObj)
+          gte(appointmentsTable.appointmentDate, monthStartStr),
+          lt(appointmentsTable.appointmentDate, nextMonthStartStr)
         )
       );
 
@@ -84,15 +80,14 @@ export async function GET(request: Request) {
     // Get previous month appointments
     const prevMonthStart = getMonthStart(new Date(now.getFullYear(), now.getMonth() - 1));
     const prevMonthStartStr = toDateOnly(prevMonthStart);
-    const prevMonthStartObj = new Date(prevMonthStartStr);
-    
+
     const prevMonthAppointments = await db
       .select()
       .from(appointmentsTable)
       .where(
         and(
-          gte(appointmentsTable.appointmentDate, prevMonthStartObj),
-          lt(appointmentsTable.appointmentDate, startDateObj)
+          gte(appointmentsTable.appointmentDate, prevMonthStartStr),
+          lt(appointmentsTable.appointmentDate, monthStartStr)
         )
       );
 
@@ -107,14 +102,13 @@ export async function GET(request: Request) {
       0
     );
 
-    // Get sales revenue - use Date objects for proper database comparison
     const currentPeriodSales = await db
       .select()
       .from(salesTable)
       .where(
         and(
-          gte(salesTable.date, startDateObj),
-          lt(salesTable.date, endDateObj)
+          gte(salesTable.date, monthStartStr),
+          lt(salesTable.date, nextMonthStartStr)
         )
       );
 
@@ -125,14 +119,13 @@ export async function GET(request: Request) {
 
     const totalRevenue = currentPeriodRevenue + salesRevenue;
 
-    // Get expenses for current period - use Date objects for proper filtering
     const currentPeriodExpenses = await db
       .select()
       .from(expensesTable)
       .where(
         and(
-          gte(expensesTable.date, startDateObj),
-          lt(expensesTable.date, endDateObj)
+          gte(expensesTable.date, monthStartStr),
+          lt(expensesTable.date, nextMonthStartStr)
         )
       );
 
@@ -211,16 +204,15 @@ export async function GET(request: Request) {
     
     if (period === 'today') {
       // Show data for today only
-      const todayObj = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const dayAppointments = await db
         .select()
         .from(appointmentsTable)
-        .where(eq(appointmentsTable.appointmentDate, todayObj));
+        .where(eq(appointmentsTable.appointmentDate, todayStr));
       
       const daySales = await db
         .select()
         .from(salesTable)
-        .where(eq(salesTable.date, todayObj));
+        .where(eq(salesTable.date, todayStr));
 
       const dayRevenue = dayAppointments.reduce((sum, apt) => sum + Number(apt.money || 0), 0) +
                         daySales.reduce((sum, sale) => sum + Number(sale.totalPrice || 0), 0);
@@ -248,15 +240,16 @@ export async function GET(request: Request) {
         const dayDate = new Date(weekStart);
         dayDate.setDate(weekStart.getDate() + i);
         
+        const dayStr = toDateOnly(dayDate);
         const dayAppointments = await db
           .select()
           .from(appointmentsTable)
-          .where(eq(appointmentsTable.appointmentDate, dayDate));
+          .where(eq(appointmentsTable.appointmentDate, dayStr));
         
         const daySales = await db
           .select()
           .from(salesTable)
-          .where(eq(salesTable.date, dayDate));
+          .where(eq(salesTable.date, dayStr));
 
         const dayRevenue = dayAppointments.reduce((sum, apt) => sum + Number(apt.money || 0), 0) +
                           daySales.reduce((sum, sale) => sum + Number(sale.totalPrice || 0), 0);
@@ -280,15 +273,16 @@ export async function GET(request: Request) {
         const dayDate = new Date(startDate);
         dayDate.setDate(startDate.getDate() + i);
         
+        const dayStr = toDateOnly(dayDate);
         const dayAppointments = await db
           .select()
           .from(appointmentsTable)
-          .where(eq(appointmentsTable.appointmentDate, dayDate));
+          .where(eq(appointmentsTable.appointmentDate, dayStr));
         
         const daySales = await db
           .select()
           .from(salesTable)
-          .where(eq(salesTable.date, dayDate));
+          .where(eq(salesTable.date, dayStr));
 
         const dayRevenue = dayAppointments.reduce((sum, apt) => sum + Number(apt.money || 0), 0) +
                           daySales.reduce((sum, sale) => sum + Number(sale.totalPrice || 0), 0);
@@ -313,8 +307,8 @@ export async function GET(request: Request) {
       
       for (let i = 11; i >= 0; i--) {
         const chartDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const chartMonthStart = getMonthStart(chartDate);
-        const chartNextMonthStart = getNextMonthStart(chartDate);
+        const chartMonthStart = toDateOnly(getMonthStart(chartDate));
+        const chartNextMonthStart = toDateOnly(getNextMonthStart(chartDate));
 
         const monthAppointments = await db
           .select()

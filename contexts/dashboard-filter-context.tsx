@@ -14,7 +14,7 @@ interface DashboardFilterContextType {
 const DashboardFilterContext = createContext<DashboardFilterContextType | undefined>(undefined)
 
 export function DashboardFilterProvider({ children }: { children: ReactNode }) {
-  const [period, setPeriodState] = useState<TimePeriod>('month')
+  const [period, setPeriodState] = useState<TimePeriod>('today')
   const [startDate, setStartDate] = useState<string | undefined>()
   const [endDate, setEndDate] = useState<string | undefined>()
 

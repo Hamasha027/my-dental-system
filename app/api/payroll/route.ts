@@ -160,19 +160,32 @@ export async function POST(request: Request) {
       const uniqueStaffIds = new Set(records.map(r => r.staffId));
       const totalStaff = uniqueStaffIds.size;
 
-      // Check if already finalized
-      const existing = await db
-        .select()
-        .from(payrollHistoryTable)
-        .where(eq(payrollHistoryTable.monthKey, monthKey))
-        .limit(1);
+      // Idempotent finalize:
+      // - If payroll_history already has this monthKey, update totals + finalizedAt
+      // - Otherwise insert a new row
+      const finalizedAt = new Date();
 
-      if (existing.length > 0) {
-        return NextResponse.json({ message: 'ئەم مانگە پێشتر کۆتایی هاتووە' }, { status: 400 });
+      const updated = await db
+        .update(payrollHistoryTable)
+        .set({
+          year,
+          month,
+          totalAdvances: totalAdvances.toString(),
+          totalSalaryPaid: totalSalaryPaid.toString(),
+          totalStaff,
+          finalizedAt,
+        })
+        .where(eq(payrollHistoryTable.monthKey, monthKey))
+        .returning();
+
+      if (updated.length > 0) {
+        return NextResponse.json({
+          message: 'ڕاپۆرتی مانگانە نوێکرایەوە بە سەرکەوتوویی',
+          record: updated[0],
+        }, { status: 200 });
       }
 
-      // Save to payroll_history
-      const finalized = await db
+      const inserted = await db
         .insert(payrollHistoryTable)
         .values({
           monthKey,
@@ -181,13 +194,13 @@ export async function POST(request: Request) {
           totalAdvances: totalAdvances.toString(),
           totalSalaryPaid: totalSalaryPaid.toString(),
           totalStaff,
-          finalizedAt: new Date(),
+          finalizedAt,
         })
         .returning();
 
       return NextResponse.json({
         message: 'ڕاپۆرتی مانگانە بە سەرکەوتوویی دروستکرا',
-        record: finalized[0],
+        record: inserted[0],
       }, { status: 201 });
     }
 

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { jsPDF } from "jspdf"
 import html2canvas from "html2canvas"
 import { Download, Filter, CalendarDays, Eye, FileText, Users, DollarSign, Wallet, TrendingUp, Loader2, RotateCcw, User, TrendingDown, Printer } from "lucide-react"
-import { toast } from "sonner"
+import { toast } from '@/lib/toast'
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"

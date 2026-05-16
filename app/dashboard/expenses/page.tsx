@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

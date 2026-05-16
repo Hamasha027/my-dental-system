@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
+import { useNotificationHelper } from '@/hooks/useNotificationHelper';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Search, Trash2, Pencil, User, Calendar, TrendingUp, DollarSign, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, Plus, Search, Trash2, Pencil, User, Calendar, TrendingUp, DollarSign, AlertCircle } from 'lucide-react';
 import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from '@/components/pagination';
 
@@ -95,6 +96,7 @@ const getTreatmentColor = (treatmentType: string) => {
 };
 
 export default function AppointmentsPage() {
+  const { notifyPatient, notifyPatientDeleted } = useNotificationHelper();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -228,20 +230,14 @@ export default function AppointmentsPage() {
         throw new Error(editingAppointment ? 'وەک نەتوانیت نەخۆشی نوێبکەیتەوە' : 'وەک نەتوانیت نەخۆشی زیادبکە');
       }
 
-      // Refresh appointments list
       await fetchAppointments();
-      
-      // Show success toast with green color
-      toast.custom(
-        (t) => (
-          <div className="bg-emerald-500 dark:bg-emerald-600 border-l-4 border-l-emerald-700 text-white px-6 py-4 rounded-lg shadow-2xl font-medium flex items-center gap-4 max-w-sm">
-            <CheckCircle2 className="w-6 h-6 flex-shrink-0 animate-scale-in" />
-            <div className="flex-1">
-              <p className="text-sm opacity-90">{editingAppointment ? 'نەخۆش بەسەرکەوتویی نوێکرایەوە' : 'نەخۆش بەسەرکەوتویی زیاد کرا'}</p>
-            </div>
-          </div>
-        ),
-        { duration: 4000 }
+
+      if (!editingAppointment) {
+        notifyPatient(formData.name, formData.treatmentType);
+      }
+
+      toast.success(
+        editingAppointment ? 'نەخۆش بەسەرکەوتویی نوێکرایەوە' : 'نەخۆش بەسەرکەوتویی زیاد کرا'
       );
       
       setOpenDialog(false);
@@ -295,6 +291,7 @@ export default function AppointmentsPage() {
 
   const handleDeleteAppointment = async (id: number) => {
     setDeleting(true);
+    const deleted = appointments.find((a) => a.id === id);
     try {
       const response = await fetch(`/api/appointments?id=${id}`, {
         method: 'DELETE',
@@ -304,22 +301,14 @@ export default function AppointmentsPage() {
         throw new Error('وەک نەتوانیت نەخۆشی بسڕە');
       }
 
-      // Refresh appointments list
+      if (deleted?.name) {
+        notifyPatientDeleted(deleted.name);
+      }
+
       await fetchAppointments();
       setDeleteConfirm(null);
-      
-      // Show delete toast with red color
-      toast.custom(
-        (t) => (
-          <div className="bg-red-500 dark:bg-red-600 border-l-4 border-l-red-700 text-white px-6 py-4 rounded-lg shadow-2xl font-medium flex items-center gap-4 max-w-sm">
-            <XCircle className="w-6 h-6 flex-shrink-0 animate-scale-in" />
-            <div className="flex-1">
-              <p className="text-sm opacity-90">نەخۆش بەسەرکەوتویی سڕایەوە</p>
-            </div>
-          </div>
-        ),
-        { duration: 4000 }
-      );
+
+      toast.success('نەخۆش بەسەرکەوتویی سڕایەوە');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'هەڵەیەک ڕویدا');
     } finally {

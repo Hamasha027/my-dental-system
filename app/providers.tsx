@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
+import { NotificationsProvider } from '@/contexts/notifications-context';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -17,7 +18,9 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <NuqsAdapter>
       <QueryClientProvider client={queryClient}>
-        {children}
+        <NotificationsProvider>
+          {children}
+        </NotificationsProvider>
       </QueryClientProvider>
     </NuqsAdapter>
   );

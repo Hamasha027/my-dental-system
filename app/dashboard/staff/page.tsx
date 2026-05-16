@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import Link from 'next/link';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Trash2, Plus, User, Search, Pencil, Eye, Lock, FileText, Wallet } from 'lucide-react';
+import { Loader2, Trash2, Plus, User, Search, Pencil, Eye, FileText, Wallet, CalendarCheck } from 'lucide-react';
 import { useQueryState } from 'nuqs';
 import { useStaff, useMonthlyRecords, useAddStaff, useAddMonthlyRecord, useDeleteStaff, useUpdateStaff, useCloseMonth } from '@/hooks/useStaffQueries';
 import { usePagination } from '@/hooks/usePagination';
@@ -69,6 +69,7 @@ function StaffPageContent() {
   const [openEditStaffDialog, setOpenEditStaffDialog] = useState(false);
   const [openAdvanceReasonDialog, setOpenAdvanceReasonDialog] = useState(false);
   const [openDeleteStaffDialog, setOpenDeleteStaffDialog] = useState(false);
+  const [openCloseMonthDialog, setOpenCloseMonthDialog] = useState(false);
   const [editingStaffId, setEditingStaffId] = useState<number | null>(null);
   const [deletingStaffId, setDeletingStaffId] = useState<number | null>(null);
   const [selectedStaffName, setSelectedStaffName] = useState('');
@@ -105,6 +106,7 @@ function StaffPageContent() {
   });
 
   // Queries and Mutations
+  const queryClient = useQueryClient();
   const currentMonthKey = getMonthKey();
   const { data: staff = [], isLoading: staffLoading } = useStaff();
   const { data: transactions = [] } = useMonthlyRecords(currentMonthKey);
@@ -112,6 +114,7 @@ function StaffPageContent() {
   const addTransactionMutation = useAddMonthlyRecord();
   const deleteStaffMutation = useDeleteStaff();
   const updateStaffMutation = useUpdateStaff();
+  const closeMonthMutation = useCloseMonth();
 
   // Filtering and Pagination
   const filteredStaff = useMemo(() => {
@@ -343,14 +346,13 @@ function StaffPageContent() {
         </div>
 
         <div className="flex gap-1 flex-shrink-0">
-          <Link href="/dashboard/staff/reports">
-            <Button
-              className="bg-blue-600 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/30 active:scale-95 active:shadow-inner gap-1 text-white font-semibold px-2 sm:px-3 py-2 text-xs sm:text-sm transition-all duration-150"
-            >
-              <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span>ڕاپۆرتەکان</span>
-            </Button>
-          </Link>
+          <Button
+            onClick={() => setOpenCloseMonthDialog(true)}
+            className="bg-primary hover:shadow-lg hover:shadow-primary/30 active:scale-95 active:shadow-inner gap-1 text-white font-semibold px-2 sm:px-3 py-2 text-xs sm:text-sm transition-all duration-150"
+          >
+            <CalendarCheck className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span>کۆتایی مانگ</span>
+          </Button>
           <Button
             onClick={() => setOpenAddAdvanceDialog(true)}
             className="bg-primary hover:shadow-lg hover:shadow-primary/30 active:scale-95 active:shadow-inner gap-1 text-white font-bold px-2 sm:px-3 py-2 text-xs sm:text-sm transition-all duration-150"
@@ -641,6 +643,66 @@ function StaffPageContent() {
                 </div>
               ))
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Close Month Confirmation Dialog */}
+      <Dialog
+        open={openCloseMonthDialog}
+        onOpenChange={(open) => {
+          if (!closeMonthMutation.isPending) setOpenCloseMonthDialog(open);
+        }}
+      >
+        <DialogContent className="max-w-[95vw] sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="text-center">کۆتایی پێهێنان بە مانگەکە</DialogTitle>
+            <DialogDescription className="text-center">
+              ئایا دڵنیایت کە دەتەوێت مانگی {(() => { const [m, y] = currentMonthKey.split('-'); const names = ['کانونی دوویم','شوبات','ئازار','نیسان','ئایار','حزیران','تەمموز','ئاب','ئەیلول','تشرینی یەکەم','تشرینی دوویم','کانونی یەکەم']; return `${names[parseInt(m)-1]} ${y}`; })()} کۆتایی بهێنیت؟
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-lg border border-primary/20 dark:border-primary/30 bg-primary/5 dark:bg-primary/10 p-4 text-sm text-primary/90 dark:text-primary/80 space-y-1">
+            <p className="font-semibold">• ڕاپۆرتی مانگانە پاشەکەوت دەکرێت</p>
+            <p>• کۆی پێشەکییەکان و موچەکان سفر دەبێتەوە</p>
+            <p>• داتاکان بۆ بەشی ڕاپۆرتەکان دەمێنێتەوە</p>
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button
+              type="button"
+              onClick={async () => {
+                try {
+                  // Step 1: finalize month (save report to history)
+                  await closeMonthMutation.mutateAsync(currentMonthKey);
+                  // Step 2: mark all advances as paid (reset to 0 in current view)
+                  await fetch('/api/payroll', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'payAll', monthKey: currentMonthKey }),
+                  });
+                  // Step 3: refresh data so UI shows zero
+                  await queryClient.invalidateQueries({ queryKey: ['monthly-records', currentMonthKey] });
+                  setOpenCloseMonthDialog(false);
+                } catch {
+                  // error toast already shown by the mutation
+                }
+              }}
+              disabled={closeMonthMutation.isPending}
+              className="flex-1 bg-primary hover:shadow-lg hover:shadow-primary/30 active:scale-95 active:shadow-inner text-white font-semibold transition-all duration-150"
+            >
+              {closeMonthMutation.isPending ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : null}
+              بەڵێ ، مانگ کۆتایی بهێنە
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpenCloseMonthDialog(false)}
+              disabled={closeMonthMutation.isPending}
+              className="flex-1"
+            >
+              پاشگەزبوونەوە
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

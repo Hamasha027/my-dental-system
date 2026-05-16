@@ -47,9 +47,11 @@ interface DashboardStats {
 }
 
 interface ChartData {
-  month: string
+  month?: string
+  day?: string
   revenue: number
   appointments: number
+  sales?: number
 }
 
 export const ChartJSDashboard = memo(function ChartJSDashboard() {
@@ -198,7 +200,7 @@ export const ChartJSDashboard = memo(function ChartJSDashboard() {
       }
     : null
 
-  const getChartLabel = (dataPoint: any) => {
+  const getChartLabel = (dataPoint: ChartData) => {
     return dataPoint.month || dataPoint.day || ''
   }
 
