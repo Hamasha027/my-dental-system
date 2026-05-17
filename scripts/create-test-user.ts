@@ -15,7 +15,12 @@ async function createTestUser() {
     `;
     
     if (existingUser.length > 0) {
-      console.log('✓ Test user already exists');
+      await sql`
+        UPDATE users_table
+        SET role = 'admin'
+        WHERE email = 'admin@dental.com'
+      `;
+      console.log('✓ Test user already exists (role set to admin)');
       console.log('Email: admin@dental.com');
       console.log('Password: admin123');
       return;
@@ -23,8 +28,8 @@ async function createTestUser() {
     
     // Create test user
     await sql`
-      INSERT INTO users_table (email, password)
-      VALUES ('admin@dental.com', 'admin123')
+      INSERT INTO users_table (email, password, role)
+      VALUES ('admin@dental.com', 'admin123', 'admin')
     `;
     
     console.log('✓ Test user created successfully');

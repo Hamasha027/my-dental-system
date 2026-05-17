@@ -4,6 +4,8 @@ export const usersTable = pgTable('users_table', {
   id: serial('id').primaryKey(),
   email: text('email').notNull().unique(),
   password: text('password').notNull(),
+  role: varchar('role', { length: 20 }).notNull().default('user'),
+  permissions: text('permissions'),
 });
 
 export const appointmentsTable = pgTable('appointments_table', {

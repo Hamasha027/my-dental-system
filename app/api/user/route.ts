@@ -1,52 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db/drizzle';
-import { usersTable } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { getSessionUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const sessionCookie = request.cookies.get('sessionId')?.value;
-    const otpSessionCookie = request.cookies.get('session')?.value;
+    const session = await getSessionUser(request);
 
-    // Check if logged in via OTP
-    if (otpSessionCookie && !sessionCookie) {
-      return NextResponse.json(
-        {
-          id: 0,
-          email: '*****',
-          isOTPLogin: true,
-        },
-        { status: 200 }
-      );
-    }
-
-    if (!sessionCookie) {
+    if (!session) {
       return NextResponse.json(
         { message: 'نەگەیشتوویت' },
         { status: 401 }
       );
     }
 
-    const user = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.id, parseInt(sessionCookie)))
-      .limit(1);
-
-    if (user.length === 0) {
-      return NextResponse.json(
-        { message: 'بەکارهێنەر نەدۆزرایەوە' },
-        { status: 404 }
-      );
-    }
-
     return NextResponse.json(
       {
-        id: user[0].id,
-        email: user[0].email,
-        isOTPLogin: false,
+        id: session.id,
+        email: session.email,
+        role: session.role,
+        permissions: session.permissions,
+        isAdmin: session.isAdmin,
+        isOTPLogin: session.isOTPLogin,
       },
       { status: 200 }
     );

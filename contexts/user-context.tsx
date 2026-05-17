@@ -2,10 +2,15 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react"
 
+import type { UserPermissions, UserRole } from '@/lib/permissions'
+
 interface User {
   id: number
   email: string
   isOTPLogin: boolean
+  role?: UserRole
+  permissions?: UserPermissions
+  isAdmin?: boolean
 }
 
 interface UserContextType {

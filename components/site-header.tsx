@@ -19,6 +19,7 @@ const pageNames: Record<string, string> = {
   '/dashboard/reports': 'راپۆرتەکان',
   '/dashboard/settings': 'ڕێکخستنەکان',
   '/dashboard/seller': 'بەشی فرۆشتن',
+  '/dashboard/admin/users': 'بەکارهێنەرەکان',
 }
 
 export function SiteHeader() {
