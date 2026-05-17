@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { LogOutIcon } from "lucide-react"
+import { notifyLogout, notifyActionError } from "@/lib/notify"
 
 export function NavUser({
   user,
@@ -40,11 +41,15 @@ export function NavUser({
         method: 'POST',
       })
       if (response.ok) {
+        notifyLogout()
         setIsConfirmOpen(false)
         router.push('/login')
+      } else {
+        notifyActionError('هەڵە لە چوونەدەرەوە')
       }
     } catch (error) {
       console.error('Logout error:', error)
+      notifyActionError('هەڵە لە چوونەدەرەوە')
     } finally {
       setIsLoggingOut(false)
     }

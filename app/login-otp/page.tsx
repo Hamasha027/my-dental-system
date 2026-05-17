@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogIn, ArrowLeft, Lock, ShieldCheck, KeyRound } from "lucide-react";
 import Image from 'next/image';
-import { toast } from '@/lib/toast';
+import { notifyLoginSuccess, notifyLoginError } from '@/lib/notify';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -67,30 +67,18 @@ export default function LoginOTP() {
             if (response.ok) {
                 setCode(['', '', '', '', '', '']);
                 setError(false);
-                toast.success('بەسەرکەوتوویی چوویتە ژوورەوە', {
-                    style: {
-                        background: '#3dc1d3',
-                        color: '#ffffff',
-                        border: '1px solid #35aebb',
-                    },
-                });
+                notifyLoginSuccess();
                 setTimeout(() => {
                     router.push('/dashboard');
                 }, 1500);
             } else {
                 setCode(['', '', '', '', '', '']);
                 setError(true);
-                toast.error('کۆدی تایبەت هەڵەیە', {
-                    style: {
-                        background: '#fee2e2',
-                        color: '#991b1b',
-                        border: '1px solid #fca5a5',
-                    },
-                });
+                notifyLoginError('کۆدی تایبەت هەڵەیە');
             }
         } catch (error) {
             console.error('OTP Login error:', error);
-            toast.error('هەڵەیەک ڕویدا لە سێرڤەر');
+            notifyLoginError('هەڵەیەک ڕویدا لە سێرڤەر');
         } finally {
             setLoading(false);
         }

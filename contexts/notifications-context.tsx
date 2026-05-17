@@ -2,7 +2,10 @@
 
 import { createContext, useContext, useState, ReactNode, useCallback, useEffect } from 'react'
 import { preloadNotificationSounds } from '@/lib/notification-sound'
-import { registerPushNotificationHandler } from '@/lib/push-notification'
+import {
+  registerPushNotificationHandler,
+  type NotificationInput,
+} from '@/lib/push-notification'
 
 export type NotificationType =
   | 'sale'
@@ -21,6 +24,7 @@ export type NotificationType =
   | 'success'
   | 'error'
   | 'info'
+  | 'login'
 
 export interface Notification {
   id: string
@@ -29,11 +33,13 @@ export interface Notification {
   message: string
   timestamp: Date
   read: boolean
+  /** ناسنامەی ڕیز لە داتابەیس — بۆ نۆتیفیکەیشنی چوونەژوورەوەی ئەدمین */
+  serverId?: number
 }
 
 interface NotificationsContextType {
   notifications: Notification[]
-  addNotification: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void
+  addNotification: (notification: NotificationInput) => void
   removeNotification: (id: string) => void
   markAsRead: (id: string) => void
   clearAll: () => void
@@ -45,11 +51,12 @@ const NotificationsContext = createContext<NotificationsContextType | undefined>
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
 
-  const addNotification = useCallback((notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
+  const addNotification = useCallback((notification: NotificationInput) => {
+    const { timestamp: providedAt, ...rest } = notification
     const newNotification: Notification = {
-      ...notification,
+      ...rest,
       id: `${Date.now()}-${Math.random()}`,
-      timestamp: new Date(),
+      timestamp: providedAt ?? new Date(),
       read: false,
     }
 

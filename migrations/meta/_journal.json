@@ -57,6 +57,13 @@
       "when": 1776884056707,
       "tag": "0007_slim_centennial",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1779046109929,
+      "tag": "0008_complete_warbound",
+      "breakpoints": true
     }
   ]
 }

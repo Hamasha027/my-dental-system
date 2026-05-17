@@ -2,6 +2,8 @@ import { Suspense } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { DashboardRouteGuard } from "@/components/dashboard-route-guard"
+import { AdminLoginNotificationListener } from "@/components/admin-login-notification-listener"
+import { PushNotificationManager } from "@/components/push-notification-manager"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { UserProvider } from "@/contexts/user-context"
 import { DashboardFilterProvider } from "@/contexts/dashboard-filter-context"
@@ -14,6 +16,8 @@ export default function DashboardLayout({
   return (
     <div dir="rtl" className="no-scrollbar">
       <UserProvider>
+        <AdminLoginNotificationListener />
+        <PushNotificationManager />
         <DashboardFilterProvider>
           <SidebarProvider
             style={

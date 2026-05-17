@@ -192,7 +192,9 @@ export default function AppointmentsPage() {
       const data = await response.json();
       setAppointments(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'هەڵەیەک ڕویدا');
+      const message = err instanceof Error ? err.message : 'هەڵەیەک ڕویدا';
+      setError(message);
+      notifyActionError(message, 'هێنانی نەخۆشەکان');
     } finally {
       setLoading(false);
     }

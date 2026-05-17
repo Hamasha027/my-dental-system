@@ -19,6 +19,16 @@ import {
   notifyInstallmentDeleted,
   notifySettingsUpdated,
   notifyActionError,
+  notifyUserAdded,
+  notifyUserUpdated,
+  notifyUserDeleted,
+  notifyLoginSuccess,
+  notifyLoginError,
+  notifyLogout,
+  notifyPdfExported,
+  notifyPdfError,
+  notifyPaymentAmountSynced,
+  notifyTestDataGenerated,
 } from '@/lib/notify'
 
 /** هوک بۆ نۆتیفیکەیشن — toast + پانێڵی زەنگ */
@@ -47,5 +57,15 @@ export function useNotificationHelper() {
     notifyError: notifyActionError,
     notifyInfo: (title: string, message: string) =>
       notifySettingsUpdated(title, message),
+    notifyUserAdded,
+    notifyUserUpdated,
+    notifyUserDeleted,
+    notifyLoginSuccess,
+    notifyLoginError,
+    notifyLogout,
+    notifyPdfExported,
+    notifyPdfError,
+    notifyPaymentAmountSynced,
+    notifyTestDataGenerated,
   }
 }

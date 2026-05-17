@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { toast } from '@/lib/toast';
 import {
   notifyInstallmentAdded,
   notifyInstallmentPayment,
   notifyInstallmentDeleted,
   notifyActionError,
+  notifyPdfExported,
+  notifyPdfError,
 } from '@/lib/notify';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -500,11 +501,11 @@ export default function InstallmentsPage() {
 
       const fileName = `patient-${installment.patientName.replace(/\s+/g, '_')}-${new Date().toISOString().slice(0, 10)}.pdf`
       doc.save(fileName)
-      toast.success("PDF بە سەرکەوتوویی دابەزێنرا")
+      notifyPdfExported("PDF قیست")
     } catch (error) {
       console.error("PDF export error:", error)
       const errorMessage = error instanceof Error ? error.message : "unknown"
-      toast.error(`هەڵە لە دروستکردنی PDF: ${errorMessage}`)
+      notifyPdfError(`هەڵە لە دروستکردنی PDF: ${errorMessage}`)
     } finally {
       if (iframe && document.body.contains(iframe)) {
         document.body.removeChild(iframe)

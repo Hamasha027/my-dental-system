@@ -1,6 +1,8 @@
 import type { Notification } from '@/contexts/notifications-context'
 
-export type NotificationInput = Omit<Notification, 'id' | 'timestamp' | 'read'>
+export type NotificationInput = Omit<Notification, 'id' | 'read' | 'timestamp'> & {
+  timestamp?: Date
+}
 
 let handler: ((notification: NotificationInput) => void) | null = null
 

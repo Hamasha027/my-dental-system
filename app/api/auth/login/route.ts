@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/drizzle';
 import { usersTable } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { recordLoginNotification, formatLoginDateTime } from '@/lib/admin-notifications';
+import { sendPushToAdmins } from '@/lib/send-push';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,6 +40,23 @@ export async function POST(request: NextRequest) {
         { message: 'وشەی نهێنی یان  ئیمەیڵ  هەڵەیە' },
         { status: 401 }
       );
+    }
+
+    const role = user[0].role || 'user';
+    if (role !== 'admin') {
+      await recordLoginNotification({
+        userEmail: user[0].email,
+        userId: user[0].id,
+        method: 'email',
+      });
+
+      // نێردنی push notification بۆ مۆبایلی ئەدمین
+      const { combined } = formatLoginDateTime(new Date());
+      await sendPushToAdmins({
+        title: '🔑 چوونەژوورەوەی نوێ',
+        body: `${user[0].email} چووە ژوورەوە\n${combined}`,
+        tag: 'login-' + Date.now(),
+      });
     }
 
     // Successful login - set session cookie

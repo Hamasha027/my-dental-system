@@ -12,6 +12,7 @@ import {
   Wallet,
   Receipt,
   CreditCard,
+  LogIn,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -150,6 +151,15 @@ export function getNotificationStyle(type: NotificationType): NotificationStyle 
         accentClass: 'border-r-cyan-500',
         gradient: 'from-cyan-500/20 to-blue-500/10',
         ringClass: 'ring-cyan-500/30',
+      }
+    case 'login':
+      return {
+        icon: LogIn,
+        iconClass: 'text-sky-600 dark:text-sky-400',
+        cardClass: 'bg-sky-50/90 dark:bg-sky-950/40 border-sky-200/80 dark:border-sky-800/60',
+        accentClass: 'border-r-sky-500',
+        gradient: 'from-sky-500/20 to-blue-500/10',
+        ringClass: 'ring-sky-500/30',
       }
     case 'appointment':
       return {

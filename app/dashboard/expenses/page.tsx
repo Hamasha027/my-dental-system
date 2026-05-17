@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { toast } from '@/lib/toast';
 import {
   notifyExpenseAdded,
   notifyExpenseUpdated,
   notifyExpenseDeleted,
   notifyActionError,
+  notifyPdfExported,
+  notifyPdfError,
 } from '@/lib/notify';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -447,7 +448,7 @@ export default function ExpensesPage() {
     const range = getReportRange(reportPeriod, reportFrom, reportTo);
 
     if (!range) {
-      toast.error('تکایە ماوەی دروست هەڵبژێرە');
+      notifyActionError('تکایە ماوەی دروست هەڵبژێرە', 'PDF');
       return;
     }
 
@@ -479,7 +480,7 @@ export default function ExpensesPage() {
 
   const handleExportReportPdf = async () => {
     if (reportExpenses.length === 0) {
-      toast.error('هیچ داتایەک نییە بۆ PDF');
+      notifyActionError('هیچ داتایەک نییە بۆ PDF', 'PDF');
       return;
     }
 
@@ -609,11 +610,11 @@ export default function ExpensesPage() {
       const safeLabel = sanitizeFileSegment(reportRangeLabel || 'range');
       const fileName = `expense-report-${safeLabel || 'range'}-${isoDate}.pdf`;
       pdf.save(fileName);
-      toast.success('PDF دابەزێنرا');
+      notifyPdfExported('PDF خەرجی');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'هەڵەیەک ڕوویدا';
       console.error('PDF export error:', err);
-      toast.error(`هەڵە لە دروستکردنی PDF: ${message}`);
+      notifyPdfError(`هەڵە لە دروستکردنی PDF: ${message}`);
     } finally {
       if (iframe && document.body.contains(iframe)) {
         document.body.removeChild(iframe);

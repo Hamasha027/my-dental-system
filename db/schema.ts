@@ -144,3 +144,25 @@ export const otpcodeTable = pgTable('otpcode', {
   code: varchar('code', { length: 10 }).notNull().unique(),
   createdAt: timestamp('created_at').defaultNow(),
 });
+
+export const adminNotificationsTable = pgTable('admin_notifications', {
+  id: serial('id').primaryKey(),
+  type: varchar('type', { length: 32 }).notNull().default('login'),
+  userEmail: text('user_email').notNull(),
+  userId: integer('user_id'),
+  loginMethod: varchar('login_method', { length: 16 }).notNull(),
+  title: text('title').notNull(),
+  message: text('message').notNull(),
+  read: boolean('read').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const pushSubscriptionsTable = pgTable('push_subscriptions', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull(),
+  endpoint: text('endpoint').notNull().unique(),
+  p256dh: text('p256dh').notNull(),
+  auth: text('auth').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+

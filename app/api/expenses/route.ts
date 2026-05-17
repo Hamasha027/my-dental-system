@@ -3,6 +3,10 @@ import { expensesTable } from '@/db/schema';
 import { expenseCategories, paymentMethods } from '@/lib/types/expense';
 import { and, desc, eq, gte, ilike, lt, sql, type SQL } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  adminActionMessages,
+  recordAdminActionFromRequest,
+} from '@/lib/admin-notifications';
 
 export const dynamic = 'force-dynamic';
 
@@ -162,6 +166,11 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
+    await recordAdminActionFromRequest(
+      request,
+      adminActionMessages.expenseAdded(title, amount)
+    );
+
     return NextResponse.json(result[0], { status: 201 });
   } catch (error) {
     console.error('Error creating expense:', error);
@@ -211,6 +220,11 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'خەرجی نەدۆزرایەوە' }, { status: 404 });
     }
 
+    await recordAdminActionFromRequest(
+      request,
+      adminActionMessages.expenseUpdated(title)
+    );
+
     return NextResponse.json(updated[0], { status: 200 });
   } catch (error) {
     console.error('Error updating expense:', error);
@@ -229,7 +243,20 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'شناسە بێ' }, { status: 400 });
     }
 
+    const [existing] = await db
+      .select()
+      .from(expensesTable)
+      .where(eq(expensesTable.id, id))
+      .limit(1);
+
     await db.delete(expensesTable).where(eq(expensesTable.id, id));
+
+    if (existing) {
+      await recordAdminActionFromRequest(
+        request,
+        adminActionMessages.expenseDeleted(existing.title)
+      );
+    }
 
     return NextResponse.json({ message: 'سڕایەوە' });
   } catch (error) {

@@ -1,11 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/drizzle';
 import { installmentsTable, paymentHistoryTable } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import {
+  adminActionMessages,
+  recordAdminActionFromRequest,
+} from '@/lib/admin-notifications';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const { installmentId, amountPaid, paymentDate } = await request.json();
 
@@ -74,6 +78,14 @@ export async function POST(request: Request) {
         paymentDate,
       })
       .returning();
+
+    await recordAdminActionFromRequest(
+      request,
+      adminActionMessages.installmentPayment(
+        installment.patientName,
+        paymentAmount
+      )
+    );
 
     return NextResponse.json(
       { message: 'سەرکەوتووبوو', installment: updatedInstallment, payment },

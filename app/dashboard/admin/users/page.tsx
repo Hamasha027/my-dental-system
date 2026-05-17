@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Loader2, Plus, Shield, Trash2, Pencil, Search, Users } from 'lucide-react'
-import { toast } from '@/lib/toast'
+import {
+  notifyUserAdded,
+  notifyUserUpdated,
+  notifyUserDeleted,
+  notifyActionError,
+} from '@/lib/notify'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -77,7 +82,7 @@ export default function AdminUsersPage() {
       const data = await res.json()
       setUsers(Array.isArray(data) ? data : [])
     } catch {
-      toast.error('هەڵە لە هێنانی بەکارهێنەران')
+      notifyActionError('هەڵە لە هێنانی بەکارهێنەران')
     } finally {
       setLoading(false)
     }
@@ -125,13 +130,13 @@ export default function AdminUsersPage() {
         const err = await res.json()
         throw new Error(err.message)
       }
-      toast.success('بەکارهێنەر بە سەرکەوتوویی سڕایەوە')
+      notifyUserDeleted(deletingUserEmail)
       setOpenDeleteDialog(false)
       setDeletingUserId(null)
       setDeletingUserEmail('')
       await fetchUsers()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'هەڵە لە سڕینەوە')
+      notifyActionError(error instanceof Error ? error.message : 'هەڵە لە سڕینەوە')
     } finally {
       setDeleting(false)
     }
@@ -174,11 +179,15 @@ export default function AdminUsersPage() {
         throw new Error(err.message || 'failed')
       }
 
-      toast.success(editingId ? 'بەکارهێنەر نوێکرایەوە' : 'بەکارهێنەر دروستکرا')
+      if (editingId) {
+        notifyUserUpdated(form.email)
+      } else {
+        notifyUserAdded(form.email)
+      }
       setDialogOpen(false)
       await fetchUsers()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'هەڵە ڕوویدا')
+      notifyActionError(error instanceof Error ? error.message : 'هەڵە ڕوویدا')
     } finally {
       setSaving(false)
     }

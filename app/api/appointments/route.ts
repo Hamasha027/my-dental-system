@@ -1,7 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/drizzle';
 import { appointmentsTable } from '@/db/schema';
 import { desc, eq, and, gte, lt } from 'drizzle-orm';
+import {
+  adminActionMessages,
+  recordAdminActionFromRequest,
+} from '@/lib/admin-notifications';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,7 +86,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const { name, gender, phone, age, treatmentType, appointmentDate, money } =
       await request.json();
@@ -107,6 +111,11 @@ export async function POST(request: Request) {
       })
       .returning();
 
+    await recordAdminActionFromRequest(
+      request,
+      adminActionMessages.patientAdded(name, treatmentType)
+    );
+
     return NextResponse.json(
       { message: 'سەرکەوتووبوو', appointment: appointment[0] },
       { status: 201 }
@@ -120,7 +129,7 @@ export async function POST(request: Request) {
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
     const { id, name, gender, phone, age, treatmentType, appointmentDate, money } =
       await request.json();
@@ -153,6 +162,11 @@ export async function PUT(request: Request) {
       .where(eq(appointmentsTable.id, parseInt(id)))
       .returning();
 
+    await recordAdminActionFromRequest(
+      request,
+      adminActionMessages.patientUpdated(name)
+    );
+
     return NextResponse.json(
       { message: 'سەرکەوتووبوو', appointment },
       { status: 200 }
@@ -166,7 +180,7 @@ export async function PUT(request: Request) {
   }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -178,9 +192,22 @@ export async function DELETE(request: Request) {
       );
     }
 
+    const [existing] = await db
+      .select()
+      .from(appointmentsTable)
+      .where(eq(appointmentsTable.id, parseInt(id)))
+      .limit(1);
+
     await db
       .delete(appointmentsTable)
       .where(eq(appointmentsTable.id, parseInt(id)));
+
+    if (existing) {
+      await recordAdminActionFromRequest(
+        request,
+        adminActionMessages.patientDeleted(existing.name)
+      );
+    }
 
     return NextResponse.json(
       { message: 'سەرکەوتووبوو' },

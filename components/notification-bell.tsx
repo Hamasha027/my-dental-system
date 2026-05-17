@@ -20,12 +20,28 @@ export function NotificationBell() {
     useNotifications()
   const [open, setOpen] = useState(false)
 
+  const markServerNotificationsRead = async (serverIds: number[]) => {
+    if (serverIds.length === 0) return
+    try {
+      await fetch('/api/admin/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: serverIds }),
+      })
+    } catch {
+      // ناسینەوە لەسەر سێرڤەر — نەگەیەنراوە بە بەکارهێنەر
+    }
+  }
+
   const handleOpenChange = (next: boolean) => {
     setOpen(next)
     if (next && unreadCount > 0) {
-      notifications
-        .filter((n) => !n.read)
-        .forEach((n) => markAsRead(n.id))
+      const unread = notifications.filter((n) => !n.read)
+      unread.forEach((n) => markAsRead(n.id))
+      const serverIds = unread
+        .map((n) => n.serverId)
+        .filter((id): id is number => typeof id === 'number')
+      void markServerNotificationsRead(serverIds)
     }
   }
 

@@ -1,7 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/drizzle';
 import { staffTable } from '@/db/schema';
 import { desc, eq } from 'drizzle-orm';
+import {
+  adminActionMessages,
+  recordAdminActionFromRequest,
+} from '@/lib/admin-notifications';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +30,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const { fullName, role, phonenumber, basicSalary, age, address, status, date } = await request.json();
 
@@ -51,6 +55,11 @@ export async function POST(request: Request) {
       })
       .returning();
 
+    await recordAdminActionFromRequest(
+      request,
+      adminActionMessages.staffAdded(fullName)
+    );
+
     return NextResponse.json(
       { message: 'سەرکەوتووبوو', staff: staffMember[0] },
       { status: 201 }
@@ -64,7 +73,7 @@ export async function POST(request: Request) {
   }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -76,9 +85,19 @@ export async function DELETE(request: Request) {
       );
     }
 
+    const [existing] = await db
+      .select()
+      .from(staffTable)
+      .where(eq(staffTable.id, parseInt(id)))
+      .limit(1);
+
     await db
       .delete(staffTable)
       .where(eq(staffTable.id, parseInt(id)));
+
+    if (existing) {
+      await recordAdminActionFromRequest(request, adminActionMessages.staffDeleted());
+    }
 
     return NextResponse.json(
       { message: 'سەرکەوتووبوو' },
@@ -93,7 +112,7 @@ export async function DELETE(request: Request) {
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
     const { id, fullName, role, phonenumber, basicSalary, age, address, status } = await request.json();
 
@@ -124,6 +143,11 @@ export async function PUT(request: Request) {
       })
       .where(eq(staffTable.id, Number(id)))
       .returning();
+
+    await recordAdminActionFromRequest(
+      request,
+      adminActionMessages.staffUpdated(fullName)
+    );
 
     return NextResponse.json(
       { message: 'سەرکەوتووبوو', staff: updated[0] },

@@ -8,8 +8,9 @@ import {
   notifySaleUpdated,
   notifySaleDeleted,
   notifyActionError,
+  notifyPdfExported,
+  notifyPdfError,
 } from '@/lib/notify';
-import { toast } from '@/lib/toast';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -170,7 +171,7 @@ export default function SellerPage() {
       setSales(data);
     } catch (error) {
       console.error('Error fetching sales:', error);
-      toast.error('هەڵە لە هێنانی فرۆشتنەکان');
+      notifyActionError('هەڵە لە هێنانی فرۆشتنەکان');
     } finally {
       setLoading(false);
     }
@@ -329,7 +330,7 @@ export default function SellerPage() {
 
   const exportPDF = async () => {
     if (sales.length === 0) {
-      toast.error('هیچ داتایەک نییە بۆ PDF');
+      notifyActionError('هیچ داتایەک نییە بۆ PDF', 'PDF');
       return;
     }
 
@@ -351,9 +352,9 @@ export default function SellerPage() {
 
       pdf.addImage(imgData, 'JPEG', 10, 10, imgWidth, imgHeight);
       pdf.save(`frushiten-report-${getToday()}.pdf`);
-      toast.success('PDF بە سەرکەوتوویی دابەزێنرا');
+      notifyPdfExported('PDF فرۆشتن');
     } catch (error) {
-      toast.error('هەڵە لە دروستکردنی PDF');
+      notifyPdfError('هەڵە لە دروستکردنی PDF');
     }
   };
 

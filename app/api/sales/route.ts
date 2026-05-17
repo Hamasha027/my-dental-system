@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/db/drizzle'
 import { salesTable } from '@/db/schema'
 import { eq, and, gte, lte, lt, desc, ilike } from 'drizzle-orm'
+import {
+  adminActionMessages,
+  recordAdminActionFromRequest,
+} from '@/lib/admin-notifications'
 
 export const dynamic = 'force-dynamic'
 
@@ -117,6 +121,12 @@ export async function POST(request: NextRequest) {
       })
       .returning()
 
+    const evt = adminActionMessages.saleAdded(
+      productName.trim(),
+      totalPrice
+    )
+    await recordAdminActionFromRequest(request, evt)
+
     return NextResponse.json(sale, { status: 201 })
   } catch (error) {
     console.error('Error creating sale:', error)
@@ -156,6 +166,11 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ message: 'Sale not found' }, { status: 404 })
     }
 
+    await recordAdminActionFromRequest(
+      request,
+      adminActionMessages.saleUpdated(productName.trim())
+    )
+
     return NextResponse.json(sale, { status: 200 })
   } catch (error) {
     console.error('Error updating sale:', error)
@@ -181,6 +196,11 @@ export async function DELETE(request: NextRequest) {
     if (!sale) {
       return NextResponse.json({ message: 'Sale not found' }, { status: 404 })
     }
+
+    await recordAdminActionFromRequest(
+      request,
+      adminActionMessages.saleDeleted(sale.productName)
+    )
 
     return NextResponse.json({ message: 'Sale deleted successfully' }, { status: 200 })
   } catch (error) {

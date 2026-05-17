@@ -2,7 +2,7 @@ import type { NotificationType } from '@/contexts/notifications-context'
 import { pushNotification } from '@/lib/push-notification'
 import { playNotificationSound } from '@/lib/notification-sound'
 import { formatMoney } from '@/lib/notification-utils'
-import { toast } from '@/lib/toast'
+import { showSonnerToast } from '@/lib/show-toast'
 
 type SoundVariant = 'sale' | 'patient'
 
@@ -12,19 +12,19 @@ function notify({
   message,
   sound,
   isError = false,
+  serverId,
+  timestamp,
 }: {
   type: NotificationType
   title: string
   message: string
   sound?: SoundVariant
   isError?: boolean
+  serverId?: number
+  timestamp?: Date
 }) {
-  if (isError) {
-    toast.error(message)
-  } else {
-    toast.success(message)
-  }
-  pushNotification({ type, title, message })
+  showSonnerToast(message)
+  pushNotification({ type, title, message, serverId, timestamp })
   if (sound && !isError) {
     void playNotificationSound(sound)
   }
@@ -208,6 +208,107 @@ export function notifySettingsUpdated(label: string, detail?: string) {
     title: label,
     message: detail ?? `${label} بە سەرکەوتوویی جێبەجێ کرا`,
     sound: 'sale',
+  })
+}
+
+// ——— بەکارهێنەر (ئەدمین) ———
+export function notifyUserAdded(email: string) {
+  notify({
+    type: 'staff',
+    title: 'بەکارهێنەری نوێ',
+    message: `«${email}» بە سەرکەوتوویی دروستکرا`,
+    sound: 'sale',
+  })
+}
+
+export function notifyUserUpdated(email: string) {
+  notify({
+    type: 'staff',
+    title: 'بەکارهێنەر نوێکرایەوە',
+    message: `«${email}» بە سەرکەوتوویی نوێکرایەوە`,
+    sound: 'sale',
+  })
+}
+
+export function notifyUserDeleted(email: string) {
+  notify({
+    type: 'staff_delete',
+    title: 'بەکارهێنەر سڕایەوە',
+    message: `«${email}» لە سیستەمەوە سڕایەوە`,
+    sound: 'sale',
+  })
+}
+
+// ——— چوونەژوورەوە ———
+export function notifyLoginSuccess() {
+  notify({
+    type: 'success',
+    title: 'چوونەژوورەوە',
+    message: 'بەسەرکەوتوویی چوویتە ژوورەوە',
+    sound: 'sale',
+  })
+}
+
+export function notifyLoginError(message: string) {
+  notify({ type: 'error', title: 'چوونەژوورەوە', message, isError: true })
+}
+
+export function notifyLogout() {
+  notify({
+    type: 'info',
+    title: 'چوونەدەرەوە',
+    message: 'بە سەرکەوتوویی لە سیستەمەکە دەرچوویت',
+    sound: 'sale',
+  })
+}
+
+// ——— PDF و ڕاپۆرت ———
+export function notifyPdfExported(label = 'PDF') {
+  notify({
+    type: 'info',
+    title: 'داگرتن',
+    message: `${label} بە سەرکەوتوویی دابەزێنرا`,
+    sound: 'sale',
+  })
+}
+
+export function notifyPdfError(message: string) {
+  notify({ type: 'error', title: 'هەڵە لە PDF', message, isError: true })
+}
+
+export function notifyPaymentAmountSynced() {
+  notify({
+    type: 'success',
+    title: 'ڕێکخستن',
+    message: 'بڕی دراو بە سەرکەوتوویی ڕێکخرا',
+    sound: 'sale',
+  })
+}
+
+export function notifyTestDataGenerated() {
+  notify({
+    type: 'success',
+    title: 'داتای تاقیکاری',
+    message: 'داتای وهمەیی بە سەرکەوتوویی زیادکرا',
+    sound: 'sale',
+  })
+}
+
+// ——— ئاگادارکردنەوەی ئەدمین (چوونەژوورەوە) ———
+export function notifyAdminUserLogin(
+  title: string,
+  message: string,
+  serverId: number,
+  timestamp?: Date,
+  type: NotificationType = 'login'
+) {
+  notify({
+    type,
+    title,
+    message,
+    sound: type === 'login' || type === 'patient' ? 'patient' : 'sale',
+    serverId,
+    timestamp,
   })
 }
 

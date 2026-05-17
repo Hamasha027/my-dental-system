@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Loader2, CheckCircle2 } from 'lucide-react';
-import { toast } from '@/lib/toast';
+import { notifyTestDataGenerated, notifyActionError } from '@/lib/notify';
 
 export default function GenerateTestDataPage() {
   const [loading, setLoading] = useState(false);
@@ -21,12 +21,12 @@ export default function GenerateTestDataPage() {
 
       if (response.ok) {
         setResult(data);
-        toast.success('✅ تمت إضافة البيانات الوهمية بنجاح!');
+        notifyTestDataGenerated();
       } else {
-        toast.error('❌ خطأ: ' + data.error);
+        notifyActionError(data.error || 'هەڵە لە زیادکردنی داتا');
       }
     } catch (error) {
-      toast.error('❌ خطأ في الاتصال');
+      notifyActionError('هەڵە لە پەیوەندی بە سێرڤەر');
       console.error(error);
     } finally {
       setLoading(false);

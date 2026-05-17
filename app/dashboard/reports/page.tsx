@@ -5,7 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { jsPDF } from "jspdf"
 import html2canvas from "html2canvas"
 import { Download, Filter, CalendarDays, Eye, FileText, Users, DollarSign, Wallet, TrendingUp, Loader2, RotateCcw, User, TrendingDown, Printer } from "lucide-react"
-import { toast } from '@/lib/toast'
+import {
+  notifyActionError,
+  notifyPdfExported,
+  notifyPdfError,
+  notifyPaymentAmountSynced,
+} from '@/lib/notify'
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -291,7 +296,7 @@ function ReportsPageContent() {
       }
     } catch (error) {
       console.error("Error fetching reports:", error)
-      toast.error("هەڵە لە هێنانی داتا")
+      notifyActionError("هەڵە لە هێنانی داتا")
     } finally {
       setLoading(false)
     }
@@ -551,11 +556,11 @@ function ReportsPageContent() {
 
       const fileName = `employee-${employee.fullName.replace(/\s+/g, '_')}-${new Date().toISOString().slice(0, 10)}.pdf`
       doc.save(fileName)
-      toast.success("PDF بە سەرکەوتوویی دابەزێنرا")
+      notifyPdfExported("PDF ڕاپۆرت")
     } catch (error) {
       console.error("PDF export error:", error)
       const errorMessage = error instanceof Error ? error.message : "unknown"
-      toast.error(`هەڵە لە دروستکردنی PDF: ${errorMessage}`)
+      notifyPdfError(`هەڵە لە دروستکردنی PDF: ${errorMessage}`)
     } finally {
       if (iframe && document.body.contains(iframe)) {
         document.body.removeChild(iframe)
@@ -740,11 +745,11 @@ function ReportsPageContent() {
 
       const fileName = `patient-${installment.patientName.replace(/\s+/g, '_')}-${new Date().toISOString().slice(0, 10)}.pdf`
       doc.save(fileName)
-      toast.success("PDF بە سەرکەوتوویی دابەزێنرا")
+      notifyPdfExported("PDF ڕاپۆرت")
     } catch (error) {
       console.error("PDF export error:", error)
       const errorMessage = error instanceof Error ? error.message : "unknown"
-      toast.error(`هەڵە لە دروستکردنی PDF: ${errorMessage}`)
+      notifyPdfError(`هەڵە لە دروستکردنی PDF: ${errorMessage}`)
     } finally {
       if (iframe && document.body.contains(iframe)) {
         document.body.removeChild(iframe)
@@ -762,14 +767,14 @@ function ReportsPageContent() {
         body: JSON.stringify({ installmentId: selectedInstallment.id }),
       });
       if (response.ok) {
-        toast.success('بڕی دراو ڕێکخرا');
+        notifyPaymentAmountSynced();
         await fetchReports();
         setPaymentHistoryModalOpen(false);
       } else {
-        toast.error('هەڵە لە ڕێکخستنی بڕی دراو');
+        notifyActionError('هەڵە لە ڕێکخستنی بڕی دراو');
       }
     } catch (error) {
-      toast.error('هەڵەیەک ڕویدا');
+      notifyActionError('هەڵەیەک ڕویدا');
     } finally {
       setSyncingPayment(false);
     }
@@ -792,7 +797,7 @@ function ReportsPageContent() {
         pdfInstallments.length
 
       if (rowCount === 0) {
-        toast.error("هیچ داتایەک نییە بۆ دروستکردنی PDF")
+        notifyActionError("هیچ داتایەک نییە بۆ دروستکردنی PDF", "PDF")
         return
       }
 
@@ -1108,11 +1113,11 @@ function ReportsPageContent() {
           : `installments-report-${reportMonthKey}.pdf`
 
       doc.save(fileName)
-      toast.success("PDF بە سەرکەوتوویی دابەزێنرا")
+      notifyPdfExported("PDF ڕاپۆرت")
     } catch (error) {
       console.error("PDF export error:", error)
       const errorMessage = error instanceof Error ? error.message : "unknown"
-      toast.error(`هەڵە لە دروستکردنی PDF: ${errorMessage}`)
+      notifyPdfError(`هەڵە لە دروستکردنی PDF: ${errorMessage}`)
     } finally {
       if (iframe && document.body.contains(iframe)) {
         document.body.removeChild(iframe)

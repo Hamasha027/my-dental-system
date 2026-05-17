@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import { config } from 'dotenv';
+import { recordLoginNotification, formatLoginDateTime } from '@/lib/admin-notifications';
+import { sendPushToAdmins } from '@/lib/send-push';
 
 config();
 
@@ -28,6 +30,19 @@ export async function POST(request: Request) {
         { status: 401 }
       );
     }
+
+    await recordLoginNotification({
+      userEmail: 'بەکارهێنەری کۆدی تایبەت',
+      method: 'otp',
+    });
+
+    // نێردنی push notification بۆ مۆبایلی ئەدمین
+    const { combined } = formatLoginDateTime(new Date());
+    await sendPushToAdmins({
+      title: '🔑 چوونەژوورەوەی نوێ (کۆدی تایبەت)',
+      body: `بەکارهێنەرێک بە کۆدی تایبەت چووە ژوورەوە\n${combined}`,
+      tag: 'login-otp-' + Date.now(),
+    });
 
     // If code is valid, create a session cookie
     const response = NextResponse.json(

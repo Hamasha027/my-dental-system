@@ -1,7 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db/drizzle';
 import { installmentsTable, paymentHistoryTable } from '@/db/schema';
 import { desc, eq } from 'drizzle-orm';
+import {
+  adminActionMessages,
+  recordAdminActionFromRequest,
+} from '@/lib/admin-notifications';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,7 +63,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const { patientName, totalAmount, paidAmount, remainingAmount, installmentValue, nextPaymentDate, age, phoneNumber, address } =
       await request.json();
@@ -86,6 +90,11 @@ export async function POST(request: Request) {
         address: address || null,
       })
       .returning();
+
+    await recordAdminActionFromRequest(
+      request,
+      adminActionMessages.installmentAdded(patientName)
+    );
 
     return NextResponse.json(
       { message: 'سەرکەوتووبوو', installment: installment[0] },
@@ -142,7 +151,7 @@ export async function PUT(request: Request) {
   }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -154,6 +163,12 @@ export async function DELETE(request: Request) {
       );
     }
 
+    const [existing] = await db
+      .select()
+      .from(installmentsTable)
+      .where(eq(installmentsTable.id, parseInt(id)))
+      .limit(1);
+
     // Delete related payment history first to avoid foreign key constraint
     await db
       .delete(paymentHistoryTable)
@@ -162,6 +177,13 @@ export async function DELETE(request: Request) {
     await db
       .delete(installmentsTable)
       .where(eq(installmentsTable.id, parseInt(id)));
+
+    if (existing) {
+      await recordAdminActionFromRequest(
+        request,
+        adminActionMessages.installmentDeleted(existing.patientName)
+      );
+    }
 
     return NextResponse.json(
       { message: 'سەرکەوتووبوو' },
