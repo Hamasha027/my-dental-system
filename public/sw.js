@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-// Service Worker بۆ Web Push Notifications
+// Service Worker  Web Push Notifications
 
 self.addEventListener('push', function (event) {
   if (!event.data) return
