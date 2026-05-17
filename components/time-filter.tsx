@@ -53,7 +53,10 @@ export function TimeFilter() {
   return (
     <div className="flex items-center gap-2 ">
       <Select value={currentPeriod} onValueChange={handlePeriodChange}>
-        <SelectTrigger className="w-fit h-6 border-black-1 ">
+        <SelectTrigger
+          size="sm"
+          className="!h-8 !min-h-7 border-black-1 py-0 text-xs"
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -70,13 +73,13 @@ export function TimeFilter() {
             type="date"
             value={customStartDate}
             onChange={(e) => handleStartDateChange(e.target.value)}
-            className="h-8"
+            className="h-7 py-0 text-xs"
           />
           <Input
             type="date"
             value={customEndDate}
             onChange={(e) => handleEndDateChange(e.target.value)}
-            className="h-8"
+            className="h-7 py-0 text-xs"
           />
         </div>
       )}

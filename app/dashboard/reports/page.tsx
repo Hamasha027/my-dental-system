@@ -33,7 +33,14 @@ import {
 } from "@/components/ui/table"
 
 type ReportType = "expenses" | "installments" | "employees" | "sales" | "payment-history"
-type PeriodType = "today" | "week" | "month" | "year" | "all" | "custom"
+
+const MIN_REPORT_YEAR = 2026
+const REPORT_YEAR_LOOKAHEAD = 5
+
+const KURDISH_MONTHS = [
+  'کانونی دوویم', 'شوبات', 'ئازار', 'نیسان', 'ئایار', 'حزیران',
+  'تەمموز', 'ئاب', 'ئەیلول', 'تشرینی یەکەم', 'تشرینی دوویم', 'کانونی یەکەم',
+]
 
 type Expense = {
   id: string
@@ -143,45 +150,52 @@ function formatDate(dateValue: string) {
   return parsed.toLocaleDateString("en-CA")
 }
 
-function matchesPeriod(dateValue: string, period: PeriodType, customDate: string) {
-  if (period === "all") return true
-
+function matchesMonthYear(dateValue: string, year: number, month: number) {
   const current = new Date(dateValue)
   if (Number.isNaN(current.getTime())) return false
+  return current.getFullYear() === year && current.getMonth() + 1 === month
+}
 
-  const now = new Date()
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const inputStart = new Date(current.getFullYear(), current.getMonth(), current.getDate())
+function collectYearsFromDates(...dateValues: string[]) {
+  const years = new Set<number>()
+  for (const dateValue of dateValues) {
+    if (!dateValue) continue
+    const year = new Date(dateValue).getFullYear()
+    if (Number.isFinite(year) && year >= MIN_REPORT_YEAR) {
+      years.add(year)
+    }
+  }
+  return years
+}
 
-  if (period === "today") {
-    return inputStart.getTime() === todayStart.getTime()
+function buildAvailableReportYears(
+  payrollYears: number[],
+  expenses: Expense[],
+  sales: Sale[],
+  installments: Installment[],
+  paymentHistory: PaymentHistory[],
+) {
+  const years = new Set<number>()
+  const currentYear = new Date().getFullYear()
+  const endYear = currentYear + REPORT_YEAR_LOOKAHEAD
+
+  for (let y = MIN_REPORT_YEAR; y <= endYear; y++) {
+    years.add(y)
   }
 
-  if (period === "week") {
-    const sevenDaysAgo = new Date(todayStart)
-    sevenDaysAgo.setDate(todayStart.getDate() - 6)
-    return inputStart >= sevenDaysAgo && inputStart <= todayStart
-  }
+  payrollYears.forEach((y) => {
+    if (y >= MIN_REPORT_YEAR) years.add(y)
+  })
 
-  if (period === "month") {
-    return (
-      inputStart.getFullYear() === now.getFullYear() &&
-      inputStart.getMonth() === now.getMonth()
-    )
-  }
+  collectYearsFromDates(
+    ...expenses.map((e) => e.date),
+    ...sales.map((s) => s.date),
+    ...installments.map((i) => i.createdAt),
+    ...paymentHistory.map((p) => p.paymentDate),
+  ).forEach((y) => years.add(y))
 
-  if (period === "custom") {
-    if (!customDate) return true
-    const selected = new Date(`${customDate}T00:00:00`)
-    if (Number.isNaN(selected.getTime())) return false
-    return (
-      inputStart.getFullYear() === selected.getFullYear() &&
-      inputStart.getMonth() === selected.getMonth() &&
-      inputStart.getDate() === selected.getDate()
-    )
-  }
-
-  return inputStart.getFullYear() === now.getFullYear()
+  const sorted = Array.from(years).sort((a, b) => b - a)
+  return sorted.length > 0 ? sorted : [MIN_REPORT_YEAR]
 }
 
 function ReportsPageContent() {
@@ -202,29 +216,37 @@ function ReportsPageContent() {
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([])
   const [loading, setLoading] = useState(false)
   const [exporting, setExporting] = useState(false)
-  const [period, setPeriod] = useState<PeriodType>(activeReport === "installments" ? "all" : "today")
-  const [customDate, setCustomDate] = useState(new Date().toISOString().slice(0, 10))
   const [paymentHistoryModalOpen, setPaymentHistoryModalOpen] = useState(false)
   const [selectedInstallment, setSelectedInstallment] = useState<Installment | null>(null)
   const [selectedPatient, setSelectedPatient] = useState<string>("all")
   const [syncingPayment, setSyncingPayment] = useState(false)
 
-  // Month/Year filtering for employee reports
   const currentDate = new Date()
-  const [selectedReportYear, setSelectedReportYear] = useState(currentDate.getFullYear())
+  const [selectedReportYear, setSelectedReportYear] = useState(
+    Math.max(MIN_REPORT_YEAR, currentDate.getFullYear())
+  )
   const [selectedReportMonth, setSelectedReportMonth] = useState(currentDate.getMonth() + 1)
+
+  const reportPeriodLabel = `${KURDISH_MONTHS[selectedReportMonth - 1]} ${selectedReportYear}`
+  const reportMonthKey = `${String(selectedReportMonth).padStart(2, '0')}-${selectedReportYear}`
+  const [payrollYears, setPayrollYears] = useState<number[]>([])
+
+  const availableReportYears = useMemo(
+    () => buildAvailableReportYears(payrollYears, expenses, sales, installments, paymentHistory),
+    [payrollYears, expenses, sales, installments, paymentHistory],
+  )
 
   const fetchReports = useCallback(async () => {
     setLoading(true)
     try {
-      const selectedMonthKey = `${String(selectedReportMonth).padStart(2, '0')}-${selectedReportYear}`
-      const [expensesRes, employeesRes, monthlyRecordsRes, salesRes, installmentsRes, paymentHistoryRes] = await Promise.all([
+      const [expensesRes, employeesRes, monthlyRecordsRes, salesRes, installmentsRes, paymentHistoryRes, payrollMonthsRes] = await Promise.all([
         fetch("/api/expenses?scope=all", { cache: "no-store" }),
         fetch("/api/staff", { cache: "no-store" }),
-        fetch(`/api/payroll?monthKey=${encodeURIComponent(selectedMonthKey)}`, { cache: "no-store" }),
-        fetch("/api/sales", { cache: "no-store" }),
+        fetch(`/api/payroll?monthKey=${encodeURIComponent(reportMonthKey)}&includePaid=1`, { cache: "no-store" }),
+        fetch("/api/sales?period=all", { cache: "no-store" }),
         fetch("/api/installments", { cache: "no-store" }),
         fetch("/api/installments/payment-history", { cache: "no-store" }),
+        fetch("/api/payroll?getAvailableMonths=1", { cache: "no-store" }),
       ])
 
       if (expensesRes.ok) {
@@ -256,6 +278,17 @@ function ReportsPageContent() {
         const paymentHistoryData = await paymentHistoryRes.json()
         setPaymentHistory(Array.isArray(paymentHistoryData) ? paymentHistoryData : [])
       }
+
+      if (payrollMonthsRes.ok) {
+        const payrollMonths = await payrollMonthsRes.json()
+        if (Array.isArray(payrollMonths)) {
+          setPayrollYears(
+            payrollMonths
+              .map((m: { year?: number }) => Number(m.year))
+              .filter((y: number) => Number.isFinite(y) && y >= MIN_REPORT_YEAR),
+          )
+        }
+      }
     } catch (error) {
       console.error("Error fetching reports:", error)
       toast.error("هەڵە لە هێنانی داتا")
@@ -269,8 +302,8 @@ function ReportsPageContent() {
   }, [fetchReports])
 
   const filteredExpenses = useMemo(
-    () => expenses.filter((row) => matchesPeriod(row.date, period, customDate)),
-    [expenses, period, customDate],
+    () => expenses.filter((row) => matchesMonthYear(row.date, selectedReportYear, selectedReportMonth)),
+    [expenses, selectedReportYear, selectedReportMonth],
   )
 
   const filteredEmployees = useMemo(
@@ -285,8 +318,7 @@ function ReportsPageContent() {
       const employeeAdvances = monthlyRecords.filter(
         (record) =>
           record.staffId === employee.id &&
-          record.type === 'Advance' &&
-          !record.isPaid
+          record.type === 'Advance'
       )
       const totalAdvances = employeeAdvances.reduce(
         (sum, record) => sum + parseFloat(record.amount || '0'),
@@ -304,19 +336,14 @@ function ReportsPageContent() {
     })
   }, [employees, monthlyRecords])
 
-  const filteredTransactions = useMemo(
-    () => monthlyRecords.filter((row) => matchesPeriod(row.date, period, customDate)),
-    [monthlyRecords, period, customDate],
-  )
-
   const filteredSales = useMemo(
-    () => sales.filter((row) => matchesPeriod(row.date, period, customDate)),
-    [sales, period, customDate],
+    () => sales.filter((row) => matchesMonthYear(row.date, selectedReportYear, selectedReportMonth)),
+    [sales, selectedReportYear, selectedReportMonth],
   )
 
   const filteredInstallments = useMemo(
-    () => installments.filter((row) => matchesPeriod(row.createdAt, period, customDate)),
-    [installments, period, customDate],
+    () => installments.filter((row) => matchesMonthYear(row.createdAt, selectedReportYear, selectedReportMonth)),
+    [installments, selectedReportYear, selectedReportMonth],
   )
 
   const filteredInstallmentsByPatient = useMemo(
@@ -331,13 +358,13 @@ function ReportsPageContent() {
   )
 
   const uniquePatients = useMemo(
-    () => Array.from(new Set(installments.map(inst => inst.patientName))).sort(),
-    [installments],
+    () => Array.from(new Set(filteredInstallments.map(inst => inst.patientName))).sort(),
+    [filteredInstallments],
   )
 
   const filteredPaymentHistory = useMemo(
-    () => paymentHistory.filter((row) => matchesPeriod(row.paymentDate, period, customDate)),
-    [paymentHistory, period, customDate],
+    () => paymentHistory.filter((row) => matchesMonthYear(row.paymentDate, selectedReportYear, selectedReportMonth)),
+    [paymentHistory, selectedReportYear, selectedReportMonth],
   )
 
   const expenseTotal = useMemo(
@@ -371,11 +398,8 @@ function ReportsPageContent() {
   const printEmployee = async (employee: Employee) => {
     let iframe: HTMLIFrameElement | null = null
     try {
-      const selectedMonthKey = `${String(selectedReportMonth).padStart(2, '0')}-${selectedReportYear}`
-      const advanceTransactions = monthlyRecords.filter(t => 
-        t.staffId === employee.id && 
-        t.type === 'Advance' &&
-        t.monthKey === selectedMonthKey
+      const advanceTransactions = monthlyRecords.filter(
+        (t) => t.staffId === employee.id && t.type === 'Advance',
       )
       const totalAdvance = advanceTransactions.reduce((sum, t) => sum + Number(t.amount || 0), 0)
       const remainingSalary = Number(employee.basicSalary) - totalAdvance
@@ -395,7 +419,7 @@ function ReportsPageContent() {
         <div id="pdf-employee" style="direction:rtl;font-family:Arial,sans-serif;background:#ffffff;color:#0f172a;padding:20px;width:900px;">
           <h1 style="margin:0 0 6px 0;text-align:center;font-size:24px;color:#0f172a;">شا سیستەم - زانیاری کارمەند</h1>
           <p style="margin:0 0 20px 0;text-align:center;color:#475569;font-size:14px;">بەرواری پرێنت: ${new Date().toLocaleDateString("ku-IQ")}</p>
-          <p style="margin:0 0 20px 0;text-align:center;color:#475569;font-size:14px;">مانگی راپۆرت: ${String(selectedReportMonth).padStart(2, '0')}-${selectedReportYear}</p>
+          <p style="margin:0 0 20px 0;text-align:center;color:#475569;font-size:14px;">مانگ و ساڵی راپۆرت: ${reportPeriodLabel}</p>
           
           <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px;">
             <thead>
@@ -751,28 +775,14 @@ function ReportsPageContent() {
     }
   };
 
-  // Helper function to filter by selected month and year
-  const filterByMonthYear = (dateValue: string) => {
-    const current = new Date(dateValue)
-    if (Number.isNaN(current.getTime())) return false
-    return current.getFullYear() === selectedReportYear && current.getMonth() + 1 === selectedReportMonth
-  }
-
-  // Filter data by selected month and year
-  const monthYearFilteredExpenses = expenses.filter(row => filterByMonthYear(row.date))
-  const monthYearFilteredSales = sales.filter(row => filterByMonthYear(row.date))
-  const monthYearFilteredInstallments = installments.filter(row => filterByMonthYear(row.createdAt))
-  const monthYearFilteredPaymentHistory = paymentHistory.filter(row => filterByMonthYear(row.paymentDate))
-
   const savePdf = async () => {
     let iframe: HTMLIFrameElement | null = null
     setExporting(true)
     try {
-      // Use month/year filtered data
-      const pdfExpenses = monthYearFilteredExpenses
-      const pdfSales = monthYearFilteredSales
-      const pdfInstallments = monthYearFilteredInstallments
-      const pdfPaymentHistory = monthYearFilteredPaymentHistory
+      const pdfExpenses = filteredExpenses
+      const pdfSales = filteredSales
+      const pdfInstallments = filteredInstallments
+      const pdfPaymentHistory = filteredPaymentHistory
 
       const rowCount =
         activeReport === "expenses" ? pdfExpenses.length :
@@ -786,7 +796,7 @@ function ReportsPageContent() {
         return
       }
 
-      const monthYearStr = `${String(selectedReportMonth).padStart(2, '0')}-${selectedReportYear}`
+      const monthYearStr = reportMonthKey
 
       const reportTitle =
         activeReport === "expenses"
@@ -984,6 +994,7 @@ function ReportsPageContent() {
       const reportHtml = `
         <div id="pdf-report" style="direction:rtl;font-family:Arial,sans-serif;background:#ffffff;color:#0f172a;padding:20px;width:900px;">
           <h1 style="margin:0 0 6px 0;text-align:center;font-size:24px;">${reportTitle}</h1>
+          <p style="margin:0 0 6px 0;text-align:center;color:#475569;font-size:15px;font-weight:700;">مانگ و ساڵی راپۆرت: ${reportPeriodLabel}</p>
           <p style="margin:0 0 14px 0;text-align:center;color:#475569;">بەرواری دروستکردن: ${new Date().toLocaleDateString("en-CA")}</p>
           ${activeReport !== "installments" ? `<p style="margin:0 0 14px 0;font-weight:700;">کۆی گشتی: ${formatMoney(total)}</p>` : ''}
 
@@ -1087,14 +1098,14 @@ function ReportsPageContent() {
 
       const fileName =
         activeReport === "expenses"
-          ? `expense-report-${new Date().toISOString().slice(0, 10)}.pdf`
+          ? `expense-report-${reportMonthKey}.pdf`
           : activeReport === "employees"
-          ? `employees-report-${new Date().toISOString().slice(0, 10)}.pdf`
+          ? `employees-report-${reportMonthKey}.pdf`
           : activeReport === "sales"
-          ? `sales-report-${new Date().toISOString().slice(0, 10)}.pdf`
+          ? `sales-report-${reportMonthKey}.pdf`
           : activeReport === "payment-history"
-          ? `payment-history-report-${new Date().toISOString().slice(0, 10)}.pdf`
-          : `installments-report-${new Date().toISOString().slice(0, 10)}.pdf`
+          ? `payment-history-report-${reportMonthKey}.pdf`
+          : `installments-report-${reportMonthKey}.pdf`
 
       doc.save(fileName)
       toast.success("PDF بە سەرکەوتوویی دابەزێنرا")
@@ -1115,7 +1126,9 @@ function ReportsPageContent() {
       <div>
         <div>
           <h1 className="text-2xl font-semibold text-foreground">ڕاپۆرتەکان</h1>
-          
+          <p className="text-sm text-muted-foreground mt-1">
+            راپۆرتی ئێستا: <span className="font-semibold text-foreground">{reportPeriodLabel}</span>
+          </p>
         </div>
       </div>
 
@@ -1226,32 +1239,37 @@ function ReportsPageContent() {
       </div>
 
       <div className="space-y-4">
-        <div className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border border-border/40">
+        <div className="flex flex-wrap items-center gap-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-lg border border-border/40">
           <label className="text-sm font-semibold text-foreground">مانگ و ساڵی راپۆرت:</label>
           <Select value={String(selectedReportMonth)} onValueChange={(val) => setSelectedReportMonth(parseInt(val))}>
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {Array.from({ length: 12 }, (_, i) => {
+              {KURDISH_MONTHS.map((monthName, i) => {
                 const monthNum = i + 1
-                const monthName = new Date(2024, i).toLocaleDateString('ku-IQ', { month: 'long' })
                 return <SelectItem key={monthNum} value={String(monthNum)}>{monthName}</SelectItem>
               })}
             </SelectContent>
           </Select>
 
-          <Select value={String(selectedReportYear)} onValueChange={(val) => setSelectedReportYear(parseInt(val))}>
+          <Select
+            value={String(selectedReportYear)}
+            onValueChange={(val) => setSelectedReportYear(Math.max(MIN_REPORT_YEAR, parseInt(val)))}
+          >
             <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {Array.from({ length: 10 }, (_, i) => {
-                const year = currentDate.getFullYear() - i
-                return <SelectItem key={year} value={String(year)}>{year}</SelectItem>
-              })}
+              {availableReportYears.map((year) => (
+                <SelectItem key={year} value={String(year)}>{year}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
+
+          <span className="text-sm font-medium text-primary bg-primary/10 px-3 py-1.5 rounded-lg">
+            {reportPeriodLabel}
+          </span>
         </div>
 
         <div className="flex justify-start">
@@ -1382,7 +1400,7 @@ function ReportsPageContent() {
                     </span>
                   </TableCell>
                   <TableCell className="text-xs font-semibold text-foreground/80">
-                    {String(selectedReportMonth).padStart(2, '0')}-{selectedReportYear}
+                    {reportPeriodLabel}
                   </TableCell>
                   <TableCell className="text-xs font-semibold text-foreground/80">
                     <Button

@@ -819,10 +819,10 @@ function StaffPageContent() {
                   type="text"
                   inputMode="numeric"
                   placeholder="مووچەی بنەڕەتی"
-                  value={staffFormData.basicSalary.replace(/,/g, '')}
+                  value={formatInputValue(staffFormData.basicSalary)}
                   onChange={(e) => {
                     const numericValue = e.target.value.replace(/[^0-9.]/g, '');
-                    setStaffFormData({ ...staffFormData, basicSalary: numericValue })
+                    setStaffFormData({ ...staffFormData, basicSalary: numericValue });
                   }}
                 />
               </div>
@@ -954,10 +954,10 @@ function StaffPageContent() {
                 type="text"
                 inputMode="numeric"
                 placeholder="مووچەی بنەڕەتی"
-                value={editFormData.basicSalary.replace(/,/g, '')}
+                value={formatInputValue(editFormData.basicSalary)}
                 onChange={(e) => {
                   const numericValue = e.target.value.replace(/[^0-9.]/g, '');
-                  setEditFormData({ ...editFormData, basicSalary: numericValue })
+                  setEditFormData({ ...editFormData, basicSalary: numericValue });
                 }}
               />
             </div>
@@ -1068,10 +1068,10 @@ function StaffPageContent() {
                 type="text"
                 inputMode="numeric"
                 placeholder="بڕی پارە"
-                value={advanceFormData.amount.replace(/,/g, '')}
+                value={formatInputValue(advanceFormData.amount)}
                 onChange={(e) => {
                   const numericValue = e.target.value.replace(/[^0-9.]/g, '');
-                  setAdvanceFormData({ ...advanceFormData, amount: numericValue })
+                  setAdvanceFormData({ ...advanceFormData, amount: numericValue });
                 }}
                 required
               />

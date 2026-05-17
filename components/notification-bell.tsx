@@ -67,7 +67,7 @@ export function NotificationBell() {
               {unreadCount > 0 ? (
                 <p className="text-[11px] text-sidebar-foreground/60">{unreadCount} نوێ</p>
               ) : (
-                <p className="text-[11px] text-sidebar-foreground/60">هەموو خوێندراوەتەوە</p>
+                <p className="text-[11px] text-sidebar-foreground/60">هەموو خوێندراونەتەوە</p>
               )}
             </div>
           </div>
@@ -107,7 +107,7 @@ export function NotificationBell() {
                   هیچ ئاگادارکردنەوەیەک نییە
                 </p>
                 <p className="mt-1 text-[11px] leading-relaxed text-sidebar-foreground/50">
-                  کاتێک کردارێک لە سیستەمەکە بکەیت، لێرە دەردەکەوێت
+                  کاتێک کردارێک لە سیستەمەکە بکەیت ، لێرە دەردەکەوێت
                 </p>
               </div>
             </div>
