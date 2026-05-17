@@ -3,15 +3,27 @@ import { db } from '@/db/drizzle'
 import { pushSubscriptionsTable, usersTable } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 
-// VAPID keys setup
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY!
+// VAPID keys setup - lazy initialization
+let vapidDetailsInitialized = false
 
-webpush.setVapidDetails(
-  'mailto:admin@dental-system.com',
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY
-)
+function initializeVapidDetails() {
+  if (vapidDetailsInitialized) return
+
+  const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+  const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY
+
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+    console.warn('VAPID keys not configured, push notifications will not work')
+    return
+  }
+
+  webpush.setVapidDetails(
+    'mailto:admin@dental-system.com',
+    VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY
+  )
+  vapidDetailsInitialized = true
+}
 
 /**
  * نێردنی Web Push Notification بۆ هەموو ئەدمینەکان
@@ -24,6 +36,9 @@ export async function sendPushToAdmins(payload: {
   url?: string
 }) {
   try {
+    // Initialize VAPID details on first use
+    initializeVapidDetails()
+
     // هەموو ئەدمینەکان بدۆزەرەوە
     const admins = await db
       .select({ id: usersTable.id })
