@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
         method: 'email',
       });
 
-      // نێردنی push notification بۆ مۆبایلی ئەدمین
+   
       const { combined } = formatLoginDateTime(new Date());
       await sendPushToAdmins({
         title: '🔑 چوونەژوورەوەی نوێ',
@@ -59,7 +59,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Successful login - set session cookie
     const response = NextResponse.json(
       {
         message: 'سەرکەوتووبوو',
